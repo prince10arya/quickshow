@@ -31,7 +31,7 @@ export const stripeWebHooks = async (req, res) => {
                         isPaid: true,
                         paymentLink: "",
                     })
-                    break
+                    break;
                 }
             default:
                 console.log(' Unhandled event.type: ', event.type);

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react"
-import { dummyBookingData } from "../assets/assets"
 import BlurCircle from "./../components/BlurCircle";
 import Loading from "../components/Loading";
 import timeFormat from './../lib/timeFormat';
 import { dateFormat } from "../lib/dateFormat";
 import { useAppContext } from "../context/AppContext";
+import { Link } from "react-router-dom";
 
 
 
@@ -21,14 +21,17 @@ const MyBookings = () => {
       })
       console.log('data.bookings', data.bookings)
       if(data.success) setBookings(data.bookings)
-      setIsLoading(false)
+
     } catch (error) {
       console.error("Error fetching booking details", error.message)
+    }
+    finally {
+      setIsLoading(false);
     }
   }
 useEffect(() => {
   if(user) getMyBookings()
-},[])
+},[user])
   return !isLoading ? (
     <div className=" relative px-6 md:px-16 lg:px-40 pt-30 md:pt-40 min-h-[80vh]">
       <BlurCircle bottom="100px" right="600px" />
@@ -55,7 +58,9 @@ useEffect(() => {
             <div className=" flex flex-col md:items-end md:text-right justify-between  p-4 ">
               <div className=" flex items-center gap-4">
                 <p className="text-2xl font-semibold mb-3">{currency}{item.amount} </p>
-                {!item.isPaid && <button className=" bg-primary px-4 py-1.5 mb-3 text-sm rounded-full font-medium cursor-pointer active:scale-95" >Pay Now</button>}
+                {!item.isPaid && <Link to={item.paymentLink} className=" bg-primary px-4 py-1.5 mb-3 text-sm rounded-full font-medium cursor-pointer active:scale-95" >
+                  Pay Now
+                  </Link>}
               </div>
               <div className="text-sm">
                 <p className=" flex gap-1 items-center">
