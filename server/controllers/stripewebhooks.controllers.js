@@ -5,6 +5,7 @@ export const stripeWebHooks = async (req, res) => {
     const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
     const sig = req.headers["stripe-signature"]
 
+
     let event ;
 
     try {
@@ -27,6 +28,16 @@ export const stripeWebHooks = async (req, res) => {
 
                     const session  = sessionList.data[0];
                     const {bookingId} = session.metadata;
+                    if (!bookingId) {
+                      console.warn(
+                        "bookingId not found in session metadata for payment intent:",
+                        paymentIntent.id
+                      );
+                      // You might want to handle this case, maybe log it for manual review
+                      return res
+                        .status(400)
+                        .send("Booking ID not found in metadata.");
+                    }
                     await Booking.findByIdAndUpdate(bookingId, {
                         isPaid: true,
                         paymentLink: "",

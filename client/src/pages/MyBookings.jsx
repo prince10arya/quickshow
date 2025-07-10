@@ -58,7 +58,7 @@ useEffect(() => {
             <div className=" flex flex-col md:items-end md:text-right justify-between  p-4 ">
               <div className=" flex items-center gap-4">
                 <p className="text-2xl font-semibold mb-3">{currency}{item.amount} </p>
-                {!item.isPaid && <Link to={item.paymentLink} className=" bg-primary px-4 py-1.5 mb-3 text-sm rounded-full font-medium cursor-pointer active:scale-95" >
+                { !item.isPaid && <Link to={item.paymentLink} className=" bg-primary px-4 py-1.5 mb-3 text-sm rounded-full font-medium cursor-pointer active:scale-95" >
                   Pay Now
                   </Link>}
               </div>
