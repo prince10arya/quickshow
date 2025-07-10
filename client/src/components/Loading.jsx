@@ -1,11 +1,22 @@
 import React from 'react'
+import { useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const Loading = ( {className }) => {
 
+  const { nextUrl }  = useParams();
+  const navigate = useNavigate();
 
+  useEffect(() => {
+    if(nextUrl){
+      setTimeout(() => {
+        navigate('/' + nextUrl)
+      }, 8000)
+    }
+  }, [])
   return (
     <div
-      className={`loader relative left-1/2 md:top-1/2 top-1/3 ${className}`}
+      className={`loader relative ${className}`}
     ></div>
   );
 }

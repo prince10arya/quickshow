@@ -1,30 +1,50 @@
-import { HeartIcon, PlayCircleIcon, StarIcon } from 'lucide-react';
-import { dummyDateTimeData, dummyShowsData } from '../assets/assets';
-import BlurCircle from './../components/BlurCircle';
-import { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import timeFormat from '../lib/timeFormat';
-import DateSelect from '../components/DateSelect';
-import YouMayLike from '../components/YouMayLike';
-import Loading from '../components/Loading';
+import { HeartIcon, PlayCircleIcon, StarIcon } from "lucide-react";
+import BlurCircle from "./../components/BlurCircle";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
+import timeFormat from "../lib/timeFormat";
+import DateSelect from "../components/DateSelect";
+import YouMayLike from "../components/YouMayLike";
+import Loading from "../components/Loading";
+import { useAppContext } from "./../context/AppContext";
+import toast from "react-hot-toast";
 const MovieDetails = () => {
+  const { axios, getToken, user, shows, favoriteMovies, fetchFavouriteMovie } =
+    useAppContext();
+
   const { id } = useParams();
   // Fetch movie details using the id
-  const [show, setShow] = useState(null)
-  const [liked, setLiked] = useState(false)
-  const handleClick = () => {
-    setLiked(!liked);
-  }
+  const [show, setShow] = useState(null);
   const getShow = async () => {
-    const show = dummyShowsData.find((show) => show._id === id);
-    if(show)
-    {
-      setShow({
-        movie: show,
-        dateTime: dummyDateTimeData,
-      });
+    try {
+      const { data } = await axios.get(`/api/shows/${id}`);
+      console.log("data", data);
+      if (data.success) {
+        setShow(data);
+      }
+    } catch (error) {
+      console.error("Error while fetching movie details", error.messager);
     }
-  }
+  };
+
+  const handleFavourite = async () => {
+    try {
+      if (!user) return toast.error("Please Login");
+
+      const { data } = await axios.post(
+        "/api/user/update-favourite",
+        { movieId: id },
+        { headers: { Authorization: `Bearer ${await getToken()}` } }
+      );
+      console.log("data in favorites", data);
+      if (data.success) {
+        await fetchFavouriteMovie();
+        toast.success(data.message);
+      }
+    } catch (error) {
+      console.error("error fetching favourite", error.message);
+    }
+  };
 
   useEffect(() => {
     getShow();
@@ -53,7 +73,7 @@ const MovieDetails = () => {
             </p>
             <p className="">
               {timeFormat(show.movie.runtime)} &#183;{" "}
-              {show.movie.genres.map((genre) => genre.name).join(" | ")} &#183;{" "}
+              {show.movie.genres.map((genre) => genre).join(" | ")} &#183;{" "}
               {show.movie.release_date.split("-")[0]}
             </p>
             <div className=" flex items-center flex-wrap gap-4 mt-4">
@@ -69,11 +89,13 @@ const MovieDetails = () => {
               </a>
               <button
                 className=" hover:scale-110 cursor-pointer transition ease-in-out  duration-200 bg-gray-700 p-2 rounded-full active:scale-95"
-                onClick={handleClick}
+                onClick={handleFavourite}
               >
                 <HeartIcon
                   className={`w-5 h-5  ${
-                    liked ? "text-primary fill-primary " : "text-primary"
+                    favoriteMovies.find((movie) => movie._id === id)
+                      ? "text-primary fill-primary "
+                      : "text-primary"
                   }`}
                 />
               </button>
@@ -83,30 +105,35 @@ const MovieDetails = () => {
         <p className=" text-xl font-medium mt-20">Cast</p>
         <div className=" overflow-x-auto no-scrollbar mt-8 pb-4">
           <div className=" flex items-center gap-4 w-max px-4">
-            {show.movie.casts.slice(0, 12).map((cast, index) => (
-              <div className="" key={index}>
-                <img
-                  src={cast.profile_path}
-                  alt=""
-                  className=" rounded-full h-20 md:h-20 aspect-square object-cover"
-                />
-                <p className="text-xs text-gray-300 mt-3">{cast.name}</p>
-              </div>
-            ))}
+            {show.movie.casts
+              .slice(0, 12)
+              .filter(
+                (cast) =>
+                  cast.primaryImage !== null && cast.primaryImage !== undefined
+              )
+              .map((cast, index) => (
+                <div className="" key={index}>
+                  <img
+                    src={cast.primaryImage}
+                    alt=""
+                    className=" rounded-full h-20 md:h-20 aspect-square object-cover"
+                  />
+                  <p className="text-xs text-gray-300 mt-3">{cast.fullName}</p>
+                </div>
+              ))}
           </div>
         </div>
         <DateSelect dateTime={show.dateTime} id={id} />
 
         <div className=" pt-7">
-          <YouMayLike />
+          <YouMayLike shows={shows} />
         </div>
       </div>
     </>
   ) : (
     <div className="flex flex-col items-center justify-center min-h-screen">
-      <Loading/>
+      <Loading />
     </div>
   );
-}
-export default MovieDetails
-
+};
+export default MovieDetails;

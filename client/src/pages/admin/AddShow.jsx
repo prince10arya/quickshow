@@ -1,22 +1,37 @@
 import React, { useEffect, useState } from 'react'
 import Title from '../../components/admin/Title'
-import { dummyShowsData } from '../../assets/assets';
 import Loading from '../../components/Loading';
 import { CheckIcon, DeleteIcon, StarIcon } from 'lucide-react';
 import { kConverter } from '../../lib/kConverter';
+import { useAppContext } from '../../context/AppContext';
+import toast from 'react-hot-toast';
 
 const AddShow = () => {
   const currency = import.meta.env.VITE_CURRENCY;
+
+  const {axios, getToken, user} = useAppContext()
 
   const [nowPlayingMovies, setNowPlayingMovies] = useState([]);
   const [selectedMovies, setSelectedMovies] = useState(null)
   const [dateTimeSelection, setDateTimeSelection] = useState({})
   const [dateTimeInput, setDateTimeInput] = useState("")
   const [showPrice, setShowPrice] = useState("")
-  const [loading, setLoading] = useState(true);
+  const [addingShow, setAddingShow] = useState(false)
 
 const fetchNowPlayingMovies = async () => {
-  setNowPlayingMovies(dummyShowsData);
+  try {
+    const { data } = await axios.get('/api/shows/nowshowing',{
+    headers: {Authorization: `Bearer ${await getToken()}`}
+    })
+
+    if(data.success && data.movies)
+      console.log("data.movies content before setting state:", data.movies);
+      setNowPlayingMovies(data.movies);
+
+  } catch (error) {
+    console.log('error in fetching now playing movies', error)
+
+  }
 }
 const handleDateTimeAdd = () =>{
   if(!dateTimeInput) return;
@@ -43,9 +58,47 @@ const handleRemoveTime = (date, time) => {
     return { ...prev, [date]: filteredTimes,}
   })
 }
+const handleSubmit = async () => {
+  try {
+    setAddingShow(true)
+    if(!selectedMovies || Object.keys(dateTimeSelection).length === 0 || !showPrice){
+      if(!selectedMovies) return toast.error("Movie not selected");
+      if (Object.keys(dateTimeSelection).length === 0)
+        return toast.error("Date and Time not selected");
+      if (!showPrice) return toast.error("Show Price is not defined");
+    }
+    const showsInput = Object.entries(dateTimeSelection).map(([date, time]) => ({date, time}))
+
+    const payload = {
+      movieId: selectedMovies,
+      showsInput,
+      showPrice: Number(showPrice)
+    }
+
+    const { data } = await axios.post("/api/shows/addshow", payload, {headers:
+      {Authorization: `Bearer ${await getToken()}`}
+    });
+    if(data.success){
+      toast.success(data.message);
+      setSelectedMovies(null);
+      setDateTimeInput({});
+      setShowPrice("");
+    }
+    else toast.error(data.message)
+
+
+  } catch (error) {
+    console.error("Submission error in Adding shows", error.message)
+    toast.error("An error occured plz try again.")
+  }
+  setAddingShow(false);
+};
   useEffect(() => {
-    fetchNowPlayingMovies();
+    if(user){
+      fetchNowPlayingMovies();
+    }
   }, []);
+
 
 
 
@@ -64,17 +117,17 @@ const handleRemoveTime = (date, time) => {
               >
                 <div className=" relative rounded-lg overflow-hidden">
                   <img
-                    src={movie.poster_path}
+                    src={movie.primaryImage}
                     alt=""
-                    className=" w-full  object-cover brightness-90"
+                    className="w-48 h-64 brightness-90 object-cover"
                   />
                   <div className=" text-sm flex items-center justify-between p-2 bg-black/70 w-full absolute bottom-0 left-0">
                     <p className=" flex items-center gap-1 text-gray-400">
                       <StarIcon className=" w-4 h-4 text-primary fill-primary" />
-                      {movie.vote_average.toFixed(1)}
+                      {(movie.averageRating || 0).toFixed(1)}
                     </p>
                     <p className=" text-gray-300">
-                      {kConverter(movie.vote_count)} Votes
+                      {kConverter(movie.numVotes)} Votes
                     </p>
                   </div>
                 </div>
@@ -88,6 +141,8 @@ const handleRemoveTime = (date, time) => {
                     </div>
                   </div>
                 )}
+                <p className="font-medium truncate">{movie.originalTitle}</p>
+                <p className=" text-gray-400 text-sm">{movie.releaseDate}</p>
               </div>
             );
           })}
@@ -149,7 +204,7 @@ const handleRemoveTime = (date, time) => {
           </div>
         )
       }
-      <button className=" bg-primary text-white px-8 py-2 mt-6 rounded hover:bg-primary/90 transition-all cursor-pointer">
+      <button onClick={handleSubmit} disabled={addingShow} className=" bg-primary text-white px-8 py-2 mt-6 rounded hover:bg-primary/90 transition-all cursor-pointer">
       Add Show</button>
     </>
   ) : (

@@ -1,21 +1,31 @@
 import { useState, useEffect } from 'react'
-import { dummyBookingData } from '../../assets/assets';
 import Loading from '../../components/Loading';
 import Title from '../../components/admin/Title';
+import { useAppContext } from './../../context/AppContext';
 import { dateFormat } from './../../lib/dateFormat';
 
 const ListBookings = () => {
   const currency = import.meta.env.VITE_CURRENCY;
 
+  const {axios, getToken, user} = useAppContext()
+
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const getAllBookings = async () => {
-    setBookings(dummyBookingData);
+    try {
+      const {data} = await axios.get('api/admin/all-bookings', {
+        headers: {Authorization: `Bearer ${await getToken()}`}
+      })
+      setBookings(data.bookings)
+    } catch (error) {
+      console.error("error while getting bookings",error.message)
+    }
     setLoading(false);
   }
   useEffect(() => {
-    getAllBookings();
+   if(user) getAllBookings();
 
   },[])
   return !loading ? (

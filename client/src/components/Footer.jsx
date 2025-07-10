@@ -11,7 +11,9 @@ const Footer = () => {
           <div className="md:max-w-96">
             <img className="w-36 h-auto" src={assets.logo} alt="logo" />
             <p className="mt-6 text-sm">
-              QuickShow is your trusted ticket booking system for movies, events, and more. Enjoy a seamless and fast booking experience every time.
+              QuickShow is your trusted ticket booking system for movies,
+              events, and more. Enjoy a seamless and fast booking experience
+              every time.
             </p>
             <div className="flex items-center gap-2 mt-4">
               <img
@@ -30,8 +32,16 @@ const Footer = () => {
             <div>
               <h2 className="font-semibold mb-5">Company</h2>
               <ul className="text-sm space-y-2">
-              <li>
-                  <Link to="/" onClick={() => {navigate("/"); scrollTo(0,0)}}>Home</Link>
+                <li>
+                  <Link
+                    to="/"
+                    onClick={() => {
+                      navigate("/");
+                      scrollTo(0, 0);
+                    }}
+                  >
+                    Home
+                  </Link>
                 </li>
                 <li>
                   <Link to="/about">About us</Link>
@@ -53,10 +63,10 @@ const Footer = () => {
             </div>
           </div>
         </div>
-        <p className="pt-4 text-center text-sm pb-5">
+        <p className="pt-4 text-center text-sm pb-2">
           Copyright {new Date().getFullYear()} © QuickShow. All Right Reserved.
-          <p className="mb-5">Made with 💖 by Prince </p>
         </p>
+        <p className="pt-1 text-center text-sm pb-5">Made with 💖 by Prince </p>
       </footer>
     </div>
   );

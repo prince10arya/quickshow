@@ -1,9 +1,11 @@
-import { dummyShowsData } from "../assets/assets";
 import BlurCircle from "../components/BlurCircle";
 import MovieCard from "../components/MovieCard";
+import { useAppContext } from "../context/AppContext";
 
 const Movies = () => {
-  return dummyShowsData.length > 0 ? (
+  const {shows} = useAppContext();
+
+  return shows.length > 0 ? (
     <>
       <BlurCircle top="100px" right="1220px" />
       <BlurCircle top="800px" right="50px" />
@@ -11,7 +13,7 @@ const Movies = () => {
       {/* Background Blur Circle */}
       <h1 className="text-lg font-medium my-4">Now Showing</h1>
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4 gap-6">
-        {dummyShowsData.map((movie) => (
+        {shows.map((movie) => (
           <MovieCard movie={movie} key={movie.id} />
         ))}
       </div>

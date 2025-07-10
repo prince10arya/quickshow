@@ -1,36 +1,17 @@
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import 'keen-slider/keen-slider.min.css';
-import { useKeenSlider } from 'keen-slider/react';
 import BlurCircle from "./BlurCircle";
-import { dummyShowsData } from "../assets/assets";
 import MovieCard from './MovieCard'
+import { useAppContext } from './../context/AppContext';
 
 const FeatureSections = () => {
+
+  const {shows} = useAppContext();
+
+
   const navigate = useNavigate();
-  const [sliderRef] = useKeenSlider({
-    slides: {
-      perView: 4,
-      spacing: 15,
-    },
-    breakpoints: {
-      "(max-width: 1536px)": {
-        slides: { perView: 5, spacing: 15 },
-      },
-      "(max-width: 1280px)": {
-        slides: { perView: 3.9, spacing: 12 },
-      },
-      "(max-width: 1024px)": {
-        slides: { perView: 3, spacing: 10 },
-      },
-      "(max-width: 768px)": {
-        slides: { perView: 2, spacing: 8 },
-      },
-      "(max-width: 500px)": {
-        slides: { perView: 1.3, spacing: 6 }, // shows one full card and part of the next
-      },
-    },
-  });
+
 
   return (
     <div className="px-6 md:px-16 lg:px-24 xl:px-44 overflow-hidden">
@@ -48,15 +29,13 @@ const FeatureSections = () => {
           />
         </button>
       </div>
-      <div className="px-4 sm:px-8 py-8">
-      <div ref={sliderRef} className="keen-slider">
-        {dummyShowsData.map((movie) => (
+      <div className="px-4 sm:px-8 py-8 flex flex-row gap-3 flex-wrap w-48 h-48 sm:w-full sm:h-full">
+        {shows.map((movie) => (
           <div key={movie.id} className="keen-slider__slide">
             <MovieCard movie={movie} />
           </div>
         ))}
       </div>
-    </div>
 
       <div className="flex justify-center mt-20">
         <button

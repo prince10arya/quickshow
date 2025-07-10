@@ -14,14 +14,14 @@ const MovieCard = ({ movie }) => {
     <div
       className="
         flex flex-col justify-between p-3 bg-gray-800 rounded-2xl
-    hover:-translate-y-1 transition duration-300
-    w-full h-full
+      hover:-translate-y-1 transition duration-300
+      w-64 h-full
     text-white
       "
     >
       {/* Poster */}
       <img
-        src={movie.backdrop_path}
+        src={movie.poster_path}
         alt={movie.title}
         onClick={handleMovieClick}
         className="
@@ -37,7 +37,7 @@ const MovieCard = ({ movie }) => {
       {/* Info */}
       <p className="text-sm text-gray-400 mt-1">
         {new Date(movie.release_date).getFullYear()} •{' '}
-        {movie.genres?.slice(0, 2).map((genre) => genre.name).join(' | ')}
+        {movie.genres?.slice(0, 3).map((genre) => genre).join(' | ')}
       </p>
       <p className="text-sm text-gray-400 mt-1 flex flex-row gap-[3px] items-center">
         <ClockIcon className='w-3.5 h-3.5'/>{timeFormat(movie.runtime)}</p>

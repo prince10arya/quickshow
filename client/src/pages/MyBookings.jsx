@@ -3,22 +3,31 @@ import { dummyBookingData } from "../assets/assets"
 import BlurCircle from "./../components/BlurCircle";
 import Loading from "../components/Loading";
 import timeFormat from './../lib/timeFormat';
-import isoTimeFormat from "../lib/isoTimeFormat";
 import { dateFormat } from "../lib/dateFormat";
+import { useAppContext } from "../context/AppContext";
 
 
 
 const MyBookings = () => {
   const currency = import.meta.env.VITE_CURRENCY
+  const { shows, axios, getToken, user } = useAppContext();
   const [bookings,setBookings] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
   const getMyBookings = async () => {
-    setBookings(dummyBookingData)
-    setIsLoading(false)
+    try {
+      const {data} = await axios.get("/api/user/bookings", {
+        headers: {Authorization: `Bearer ${await getToken()}`}
+      })
+      console.log('data.bookings', data.bookings)
+      if(data.success) setBookings(data.bookings)
+      setIsLoading(false)
+    } catch (error) {
+      console.error("Error fetching booking details", error.message)
+    }
   }
 useEffect(() => {
-  getMyBookings()
+  if(user) getMyBookings()
 },[])
   return !isLoading ? (
     <div className=" relative px-6 md:px-16 lg:px-40 pt-30 md:pt-40 min-h-[80vh]">
@@ -53,12 +62,12 @@ useEffect(() => {
                   <span className=" text-gray-400">
                     Total Tickets:
                   </span>
-                  {item.bookedSeats.length}
+                  {item.bookedSeates.length}
                 </p><p className=" flex gap-1 items-center">
                   <span className=" text-gray-400">
                     Seat Number:
                   </span>
-                  {item.bookedSeats.join(", ")}
+                  {item.bookedSeates.join(", ")}
                 </p>
               </div>
             </div>
