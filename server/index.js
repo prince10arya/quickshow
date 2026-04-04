@@ -31,7 +31,7 @@ app.use('/api/admin',adminRouter)
 app.use('/api/user', userRouter)
 
 app.get('/', (req, res)=>{
-    res.send("<h1> Hello, World </h1>")
+    res.send("<h1> Hello, World quick show </h1>")
 })
 
 await connectDb();
