@@ -25,13 +25,15 @@ const HeroSection = () => {
         <p
         className=" max-w-md text-gray-300"
         >A bunch of skilled criminals led by brash adventurer Peter Quill join hands to fight a villain named Ronan the Accuser who wants to control the universe with the help of a mystical orb.</p>
-        <button
+        <div>
+            <button
         className="flex items-center gap-1 px-6 py-3 text-sm backdrop-blur md:bg-white/10 rounded-full  md:hover:bg-white/15 transition ease-in md:text-gray-300 md:hover:text-white/95 md:border border-gray-300/20 bg-primary hover:bg-primary-dull font-medium cursor-pointer"
         onClick={() => navigate('/movies')}
         >
             Explore Movie
             <ArrowRight className=" w-5 h-5"/>
         </button>
+        </div>
     </div>
   )
 
