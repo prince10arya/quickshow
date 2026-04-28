@@ -4,3 +4,7 @@ node_modules
 *.yaml
 Dockerfile
 .dockerignore
+.agents
+skills-lock.json
+graphify-out
+dist
