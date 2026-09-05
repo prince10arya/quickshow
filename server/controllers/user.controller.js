@@ -16,6 +16,27 @@ export const getUserBookings = async (req, res) => {
   }
 };
 
+export const getUserHistory = async (req, res) => {
+  try {
+    const userId = req.user.sub;
+    const now = new Date().toISOString();
+
+    const bookings = await Booking.find({ user: userId, isPaid: true })
+      .populate({ path: 'show', populate: { path: 'movie' } })
+      .sort({ createdAt: -1 });
+
+    // Filter to shows whose date has already passed
+    const history = bookings.filter(
+      (b) => b.show?.showDateTime && b.show.showDateTime < now
+    );
+
+    res.status(200).json({ success: true, history });
+  } catch (error) {
+    console.error('getUserHistory error', error.message);
+    res.status(400).json({ success: false, message: error.message });
+  }
+};
+
 export const updateFavourite = async (req, res) => {
   try {
     const { movieId } = req.body;

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { assets } from '../assets/assets';
-import { MenuIcon, SearchIcon, TicketPlus, XIcon, LogOut, User } from 'lucide-react';
+import { MenuIcon, SearchIcon, TicketPlus, XIcon, LogOut, History as HistoryIcon } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 
@@ -39,10 +39,11 @@ const Navbar = () => {
         <XIcon className="md:hidden absolute top-6 right-6 w-6 h-6 cursor-pointer" onClick={() => setIsOpen(false)} />
         <Link to="/" onClick={() => { scrollTo(0, 0); setIsOpen(false); }}>Home</Link>
         <Link to="/movies" onClick={() => { scrollTo(0, 0); setIsOpen(false); }}>Movies</Link>
-        <Link to="/" onClick={() => { scrollTo(0, 0); setIsOpen(false); }}>Theaters</Link>
-        <Link to="/theaters" onClick={() => { scrollTo(0, 0); setIsOpen(false); }}>Releases</Link>
         {favoriteMovies.length > 0 && (
           <Link to="/favourites" onClick={() => { scrollTo(0, 0); setIsOpen(false); }}>Favourites</Link>
+        )}
+        {user && (
+          <Link to="/history" onClick={() => { scrollTo(0, 0); setIsOpen(false); }}>History</Link>
         )}
       </div>
 
@@ -84,6 +85,14 @@ const Navbar = () => {
                 >
                   <TicketPlus width={15} />
                   My Bookings
+                </button>
+                <button
+                  id="navbar-history"
+                  onClick={() => { navigate('/history'); setDropdownOpen(false); }}
+                  className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                >
+                  <HistoryIcon width={15} />
+                  Watch History
                 </button>
                 <button
                   id="navbar-logout-btn"
