@@ -47,7 +47,92 @@ input::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
 
-/* ── Hero Carousel ─────────────────────────────────────────────────────── */
+/* ── Dummy Payment Page ──────────────────────────────────────────────────── */
+.dp-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1.25rem;
+  backdrop-filter: blur(12px);
+}
+
+.dp-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.dp-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #a1a1aa;
+  letter-spacing: 0.03em;
+}
+
+.dp-input {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 0.6rem;
+  padding: 0.6rem 0.85rem;
+  color: #fff;
+  font-size: 0.9rem;
+  outline: none;
+  transition: border-color 0.2s;
+  width: 100%;
+}
+.dp-input::placeholder { color: #52525b; }
+.dp-input:focus { border-color: rgba(248,69,101,0.55); }
+
+.dp-card-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 0.35rem;
+  color: #a1a1aa;
+}
+
+.dp-pay-btn {
+  padding: 0.75rem 1.5rem;
+  background: #f84565;
+  color: #fff;
+  font-weight: 700;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 20px rgba(248,69,101,0.35);
+}
+.dp-pay-btn:hover:not(:disabled) {
+  background: #d63854;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(248,69,101,0.5);
+}
+.dp-pay-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.dp-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: dp-spin 0.6s linear infinite;
+}
+@keyframes dp-spin { to { transform: rotate(360deg); } }
+
+.animate-bounce-once {
+  animation: dp-bounce 0.6s ease both;
+}
+@keyframes dp-bounce {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+/* ── Hero Carousel ──────────────────────────────────────────────────────── */
+
 .hero-section {
   position: relative;
   width: 100%;

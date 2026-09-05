@@ -7,6 +7,7 @@ import SeatLayout from './pages/SeatLayout';
 import MyBookings from './pages/MyBookings';
 import Favourite from './pages/Favourite';
 import History from './pages/History';
+import DummyPayment from './pages/DummyPayment';
 import Login from './pages/Login';
 import { Toaster } from 'react-hot-toast';
 import Footer from './components/Footer';
@@ -34,6 +35,7 @@ const App = () => {
         <Route path='/my-bookings' element={<MyBookings />} />
         <Route path='/favourites' element={<Favourite />} />
         <Route path='/history' element={<History />} />
+        <Route path='/payment/:bookingId' element={<DummyPayment />} />
         <Route path='/login' element={<Login />} />
         <Route path='/loading/:nextUrl' element={<Loading />} />
         <Route path='/admin/*' element={user ? <Layout /> : <Login redirectTo='/admin' />}>
