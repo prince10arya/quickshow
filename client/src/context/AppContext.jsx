@@ -1,81 +1,138 @@
-import { createContext, useContext, useEffect, useState } from "react";
-import axios from "axios";
-import { useAuth, useUser } from "@clerk/clerk-react";
-import { useLocation, useNavigate } from "react-router-dom";
-import toast from "react-hot-toast";
+import { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import axios from 'axios';
+import { useLocation, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
+import {
+  authLogin,
+  authLogout,
+  authMe,
+  authRefresh,
+  authRegister,
+  clearAccessToken,
+  getAccessToken,
+  setAccessToken,
+} from '../services/auth.service.js';
 
 axios.defaults.baseURL = import.meta.env.VITE_BASE_URL;
+axios.defaults.withCredentials = true;
 
 export const AppContext = createContext();
 
 export const AppProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [shows, setShows] = useState([]);
   const [favoriteMovies, setFavoriteMovies] = useState([]);
-  const { user } = useUser();
-  const { getToken } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
-  const fetchIsAdmin = async () => {
-    try {
+  // ── Auth helpers ──────────────────────────────────────────────────────────
 
-      const { data } = await axios.get("/api/admin/is-admin", {
-        headers: { Authorization: `Bearer ${await getToken()}` },
+  const login = async (email, password) => {
+    const { data } = await authLogin(email, password);
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+    setIsAdmin(data.user.role === 'admin');
+  };
+
+  const register = async (name, email, password) => {
+    const { data } = await authRegister(name, email, password);
+    setAccessToken(data.accessToken);
+    setUser(data.user);
+    setIsAdmin(data.user.role === 'admin');
+  };
+
+  const logout = async () => {
+    await authLogout();
+    clearAccessToken();
+    setUser(null);
+    setIsAdmin(false);
+    setFavoriteMovies([]);
+    navigate('/');
+  };
+
+  // Returns a valid access token, refreshing silently if needed
+  const getToken = useCallback(async () => {
+    const current = getAccessToken();
+    if (current) return current;
+    try {
+      const { data } = await authRefresh();
+      setAccessToken(data.accessToken);
+      return data.accessToken;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  // ── Data fetchers ─────────────────────────────────────────────────────────
+
+  const fetchIsAdmin = useCallback(async () => {
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const { data } = await axios.get('/api/admin/is-admin', {
+        headers: { Authorization: `Bearer ${token}` },
       });
       setIsAdmin(data.isAdmin);
     } catch (error) {
-      //console.log("error", error);
-      setIsAdmin(false); // Set isAdmin to false on error
-
-      // Check if the error is due to a 403 (Forbidden) or 401 (Unauthorized)
-      if (
-        error.response &&
-        (error.response.status === 403 || error.response.status === 401)
-      ) {
-        if (location.pathname.startsWith("/admin")) {
-          navigate("/"); // Redirect if they tried to access an admin path
-          toast.error("You are not authorized to view this page."); // More specific message
+      setIsAdmin(false);
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        if (location.pathname.startsWith('/admin')) {
+          navigate('/');
+          toast.error('Not authorized to view this page.');
         }
-      } else {
-        // Handle other types of errors (e.g., network issues)
-        toast.error("An error occurred. Please try again.");
       }
     }
-  };
+  }, [getToken, location.pathname, navigate]);
+
   const fetchShows = async () => {
     try {
-      const { data } = await axios.get("/api/shows/all");
+      const { data } = await axios.get('/api/shows/all');
       data.success ? setShows(data.show) : toast.error(data.message);
-      console.log('data.shows', data.show)
     } catch (error) {
-      console.log("error", error);
+      console.error('fetchShows error', error);
     }
   };
-  const fetchFavouriteMovie = async () => {
+
+  const fetchFavouriteMovie = useCallback(async () => {
     try {
-      const { data } = await axios.get("/api/user/favourites", {
-        headers: { Authorization: `Bearer ${await getToken()}` },
+      const token = await getToken();
+      if (!token) return;
+      const { data } = await axios.get('/api/user/favourites', {
+        headers: { Authorization: `Bearer ${token}` },
       });
       data.success ? setFavoriteMovies(data.movies) : toast.error(data.message);
     } catch (error) {
-      console.error(error);
+      console.error('fetchFavouriteMovie error', error);
     }
-  };
+  }, [getToken]);
+
+  // ── Bootstrap: try silent refresh on mount ───────────────────────────────
+
   useEffect(() => {
+    const bootstrap = async () => {
+      try {
+        const { data: refreshData } = await authRefresh();
+        setAccessToken(refreshData.accessToken);
+        const { data: meData } = await authMe(refreshData.accessToken);
+        setUser(meData.user);
+        setIsAdmin(meData.user.role === 'admin');
+      } catch {
+        // No valid refresh token — user not logged in, that's fine
+      }
+    };
+    bootstrap();
     fetchShows();
   }, []);
 
   useEffect(() => {
     if (user) {
-      fetchIsAdmin();
       fetchFavouriteMovie();
     }
-  }, [user]);
+  }, [user, fetchFavouriteMovie]);
 
   const value = {
     axios,
-    fetchIsAdmin,
     user,
     getToken,
     navigate,
@@ -83,8 +140,13 @@ export const AppProvider = ({ children }) => {
     shows,
     favoriteMovies,
     fetchFavouriteMovie,
+    fetchIsAdmin,
+    login,
+    logout,
+    register,
   };
-  return <AppContext.Provider value={value}> {children} </AppContext.Provider>;
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export const useAppContext = () => useContext(AppContext);

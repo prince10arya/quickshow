@@ -20,7 +20,7 @@ const checkSeatsAvail = async (showId, selectedSeats) => {
 };
 export const createBooking = async (req,res) => {
   try {
-    const { userId }  = req.auth();
+    const userId = req.user.sub;
     const { showId, selectedSeats } = req.body;
     const { origin } = req.headers;
 

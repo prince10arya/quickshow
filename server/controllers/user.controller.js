@@ -1,95 +1,51 @@
-import { clerkClient } from "@clerk/express";
-import Booking from "../models/booking.model.js";
-import Movie from "../models/movie.model.js";
+import Booking from '../models/booking.model.js';
+import Movie from '../models/movie.model.js';
+import User from '../models/user.model.js';
 
 export const getUserBookings = async (req, res) => {
   try {
-    const user = req.auth().userId;
-    const bookings = await Booking.find({user}).populate({
-      path: 'show',
-      populate: { path: 'movie'},
-    }).sort({createdAt: -1});
-    res.status(201).json({
-      success: true,
-      bookings,
-    })
+    const userId = req.user.sub;
+    const bookings = await Booking.find({ user: userId })
+      .populate({ path: 'show', populate: { path: 'movie' } })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, bookings });
   } catch (error) {
-
-    console.log("error", error.message);
-    res.status(400).json({
-      success: false,
-      message: success.message,
-    });
+    console.error('getUserBookings error', error.message);
+    res.status(400).json({ success: false, message: error.message });
   }
-}
-
+};
 
 export const updateFavourite = async (req, res) => {
   try {
     const { movieId } = req.body;
+    const userId = req.user.sub;
 
-    const { userId } = req.auth();
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    const user = await clerkClient.users.getUser(userId);
+    const idx = user.favorites.indexOf(movieId);
+    if (idx === -1) user.favorites.push(movieId);
+    else user.favorites.splice(idx, 1);
 
-    if(!user.privateMetadata.favorites)
-      user.privateMetadata.favorites = []
-    if(!user.privateMetadata.favorites.includes(movieId))
-      user.privateMetadata.favorites.push(movieId)
-    else
-     user.privateMetadata.favorites =  user.privateMetadata.favorites.filter((item) => item !== movieId);
-
-    await clerkClient.users.updateUserMetadata(userId, {privateMetadata: user.privateMetadata})
-    res.status(200).json({success: true, message: "Favourite updated successfully"})
+    await user.save();
+    res.status(200).json({ success: true, message: 'Favourite updated successfully' });
   } catch (error) {
-
-    console.log("error in update", error.message);
-    res.status(400).json({
-      success: false,
-      message: success.message,
-    });
+    console.error('updateFavourite error', error.message);
+    res.status(400).json({ success: false, message: error.message });
   }
-}
-export const addFavourite = async (req, res) => {
-  try {
-    const { movieId } = req.body;
-
-    const { userId } = req.auth();
-
-    const user = await clerkClient.users.getUser(userId);
-
-    if(!user.privateMetadata.favorites)
-      user.privateMetadata.favorites = []
-    if(!user.privateMetadata.favorites.includes(movieId))
-      user.privateMetadata.favorites.push(movieId)
-    await clerkClient.users.updateUserMetadata(userId, {privateMetadata: user.privateMetadata})
-    res.json.status(201)({success: true, message: "Favourite added successfully"})
-  } catch (error) {
-
-    console.log("error in add", error.message);
-    res.status(400).json({
-      success: false,
-      message: success.message,
-    });
-  }
-}
+};
 
 export const getFavourites = async (req, res) => {
   try {
-    const user = await clerkClient.users.getUser(req.auth().userId)
-    const favorites = user.privateMetadata.favorites;
+    const userId = req.user.sub;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-    //* Getting movies from database
-    const movies = await Movie.find({_id: {$in: favorites}})
-
+    const movies = await Movie.find({ _id: { $in: user.favorites } });
     res.status(200).json({ success: true, movies });
-
   } catch (error) {
-
-    console.log("error in get", error.message);
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
+    console.error('getFavourites error', error.message);
+    res.status(400).json({ success: false, message: error.message });
   }
-}
+};

@@ -1,33 +1,33 @@
-import { clerkClient } from '@clerk/express'
+import { verifyAccessToken } from '../services/auth/auth.service.js';
 
-export const protectAdmin = async (req, res, next) => {
+/**
+ * Attach req.user from JWT. Rejects if no valid token.
+ */
+export const protect = (req, res, next) => {
   try {
-    const token = req.headers.authorization
-    console.log('token', token)
-    const { userId } = req.auth();
-    // Check if userId exists (meaning a user is authenticated)
-    if (!userId) {
-      return res.status(401).json({
-        success: false,
-        isAdmin: false,
-        message: "Authentication required: No user found in request.",
-      });
-    }
-    console.log("userId", userId);
-    const user = await clerkClient.users.getUser(userId);
-    if (user.privateMetadata.role !== "admin") {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized: User does not have admin privileges.",
-      });
-    }
+    const header = req.headers.authorization;
+    if (!header?.startsWith('Bearer '))
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+
+    const token = header.slice(7);
+    req.user = verifyAccessToken(token); // { sub, role, iat, exp, iss }
     next();
-  } catch (error) {
-    return res.status(400).json(
-      {
-        success: false,
-        message: error,
-      }
-    )
+  } catch {
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
   }
-}
+};
+
+/**
+ * Requires admin role. Must be used after protect.
+ */
+export const protectAdmin = [
+  protect,
+  (req, res, next) => {
+    if (req.user?.role !== 'admin')
+      return res.status(403).json({ success: false, message: 'Admin access required' });
+    next();
+  },
+];
+
+// isAdmin response helper used by admin routes
+export const isAdmin = (_req, res) => res.json({ success: true, isAdmin: true });
