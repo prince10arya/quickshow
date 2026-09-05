@@ -6,3 +6,4 @@ Dockerfile
 .dockerignore
 .agents
 skills-lock.json
+dist
