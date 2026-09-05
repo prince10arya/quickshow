@@ -10,8 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ai-sdk/react": "^3.0.170",
     "@clerk/clerk-react": "^5.32.0",
     "@tailwindcss/vite": "^4.1.10",
+    "ai": "^6.0.168",
     "axios": "^1.10.0",
     "keen-slider": "^6.8.6",
     "lucide-react": "^0.517.0",
@@ -21,7 +23,8 @@
     "react-player": "^2.16.0",
     "react-router-dom": "^7.6.2",
     "screenfull": "^6.0.2",
-    "tailwindcss": "^4.1.10"
+    "tailwindcss": "^4.1.10",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",

@@ -12,7 +12,9 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@ai-sdk/openai": "^3.0.53",
     "@clerk/express": "^1.7.2",
+    "ai": "^6.0.168",
     "axios": "^1.10.0",
     "cloudinary": "^2.7.0",
     "cors": "^2.8.5",
@@ -22,7 +24,8 @@
     "inngest": "^3.39.2",
     "mongoose": "^8.16.0",
     "stripe": "^18.3.0",
-    "svix": "^1.69.0"
+    "svix": "^1.69.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "nodemon": "^3.1.10"
