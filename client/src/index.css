@@ -46,3 +46,238 @@ input::-webkit-inner-spin-button {
 input::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
+
+/* ── Hero Carousel ─────────────────────────────────────────────────────── */
+.hero-section {
+  position: relative;
+  width: 100%;
+  height: 90vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Individual slides */
+.hero-slide {
+  position: absolute;
+  inset: 0;
+  background-size:cover;
+  background-position: center 40%;
+  opacity: 0;
+  transform: scale(1.05);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+  will-change: opacity, transform;
+}
+.hero-slide--active {
+  opacity: 1;
+  transform: scale(1);
+  z-index: 1;
+}
+
+/* Gradient overlay: dark left-side vignette */
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(
+    to right,
+    rgba(9, 9, 11, 0.92) 0%,
+    rgba(9, 9, 11, 0.55) 50%,
+    rgba(9, 9, 11, 0.15) 100%
+  ),
+  linear-gradient(
+    to top,
+    rgba(9, 9, 11, 0.8) 0%,
+    transparent 40%
+  );
+}
+
+/* Content block */
+.hero-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  padding: 0 1.5rem 5rem;
+  max-width: 600px;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+@media (min-width: 768px) {
+  .hero-content { padding: 0 4rem 6rem; }
+}
+@media (min-width: 1024px) {
+  .hero-content { padding: 0 9rem 6rem; }
+}
+.hero-content--fade {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+/* Rating badge */
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.03em;
+}
+
+.hero-title {
+  font-size: clamp(2rem, 5vw, 4.2rem);
+  font-weight: 700;
+  line-height: 1.1;
+  margin: 0 0 0.75rem;
+  color: #fff;
+  text-shadow: 0 2px 16px rgba(0,0,0,0.5);
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  font-size: 0.85rem;
+  color: #a1a1aa;
+  margin-bottom: 0.9rem;
+}
+.hero-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.hero-description {
+  font-size: 0.9rem;
+  color: #a1a1aa;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.65rem 1.4rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+  background: #f84565;
+  color: #fff;
+  box-shadow: 0 4px 20px rgba(248, 69, 101, 0.4);
+}
+.hero-btn:hover {
+  transform: translateY(-2px);
+  background: #d63854;
+  box-shadow: 0 6px 24px rgba(248, 69, 101, 0.55);
+}
+.hero-btn--ghost {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #e4e4e7;
+  box-shadow: none;
+}
+.hero-btn--ghost:hover {
+  background: rgba(255,255,255,0.14);
+  box-shadow: none;
+}
+
+/* Prev / Next nav */
+.hero-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 50%;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #fff;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+.hero-nav:hover { background: rgba(255,255,255,0.18); transform: translateY(-50%) scale(1.08); }
+.hero-nav--prev { left: 1rem; }
+.hero-nav--next { right: 1rem; }
+@media (min-width: 768px) {
+  .hero-nav--prev { left: 2rem; }
+  .hero-nav--next { right: 2rem; }
+}
+
+/* Dot indicators */
+.hero-dots {
+  position: absolute;
+  bottom: 2.5rem;
+  right: 2rem;
+  z-index: 4;
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.hero-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.3);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+.hero-dot--active {
+  background: #f84565;
+  transform: scale(1.35);
+}
+
+/* Progress bar */
+.hero-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  height: 3px;
+  background: rgba(255,255,255,0.1);
+}
+.hero-progress-bar {
+  height: 100%;
+  background: linear-gradient(to right, #f84565, #ff8fa3);
+  width: 0;
+  animation: hero-progress-fill linear forwards;
+}
+@keyframes hero-progress-fill {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+/* Fallback */
+.hero-fallback {
+  background: #09090b;
+  display: flex;
+  align-items: center;
+}
+
