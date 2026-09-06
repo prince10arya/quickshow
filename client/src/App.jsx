@@ -18,6 +18,7 @@ import ListShow from './pages/admin/ListShow';
 import ListBookings from './pages/admin/ListBookings';
 import { useAppContext } from './context/AppContext';
 import Loading from './components/Loading';
+import ChatLauncher from './components/ChatLauncher';
 
 const App = () => {
   const isAdminRoute = useLocation().pathname.startsWith('/admin');
@@ -45,6 +46,7 @@ const App = () => {
           <Route path='list-bookings' element={<ListBookings />} />
         </Route>
       </Routes>
+      {!isAdminRoute && <ChatLauncher />}
       {!isAdminRoute && <Footer />}
     </>
   );

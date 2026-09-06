@@ -17,6 +17,20 @@ export const protect = (req, res, next) => {
   }
 };
 
+/** Attach a user when a valid bearer token is present, while allowing guest browsing. */
+export const optionalProtect = (req, res, next) => {
+  const header = req.headers.authorization;
+  if (!header) return next();
+  if (!header.startsWith('Bearer '))
+    return res.status(401).json({ success: false, message: 'Invalid authorization header' });
+  try {
+    req.user = verifyAccessToken(header.slice(7));
+    return next();
+  } catch {
+    return res.status(401).json({ success: false, message: 'Invalid or expired token' });
+  }
+};
+
 /**
  * Requires admin role. Must be used after protect.
  */

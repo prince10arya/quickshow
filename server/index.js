@@ -11,6 +11,7 @@ import showRouter from './routes/show.routes.js';
 import bookingRouter from './routes/booking.routes.js';
 import adminRouter from './routes/admin.routes.js';
 import userRouter from './routes/user.routes.js';
+import chatRouter from './routes/chat.routes.js';
 import { stripeWebHooks } from './controllers/stripewebhooks.controllers.js';
 import { setServers } from "node:dns/promises";
 setServers(["1.1.1.1"]);
@@ -28,6 +29,7 @@ app.use('/api/shows', showRouter);
 app.use('/api/bookings', bookingRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/user', userRouter);
+app.use('/api/chat', chatRouter);
 
 app.get('/', (_req, res) => res.send('<h1>QuickShow API</h1>'));
 
