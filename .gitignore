@@ -7,3 +7,4 @@ Dockerfile
 .agents
 skills-lock.json
 dist
+package-lock.json

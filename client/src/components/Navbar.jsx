@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 
 const Navbar = () => {
-  const { favoriteMovies, user, logout, navigate: ctxNavigate } = useAppContext();
+  const { favoriteMovies, user, logout, } = useAppContext();
   const [isOpen, setIsOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
