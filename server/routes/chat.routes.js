@@ -1,12 +1,19 @@
 import { Router } from 'express';
 
-import { getChatConversation, newChatConversation, sendChatMessage } from '../controllers/chat.controller.js';
-import { optionalProtect, protect } from '../middlewares/auth.middleware.js';
+import {
+  getChatConversation,
+  newChatConversation,
+  sendChatMessage,
+  streamChatMessage,
+} from '../controllers/chat.controller.js';
+import { optionalProtect } from '../middlewares/auth.middleware.js';
+import { validateChatMessage } from '../validators/chat.validator.js';
 
 const chatRouter = Router();
 
-chatRouter.post('/messages', optionalProtect, sendChatMessage);
-chatRouter.get('/conversation', protect, getChatConversation);
-chatRouter.post('/new', protect, newChatConversation);
+chatRouter.post('/stream', optionalProtect, validateChatMessage, streamChatMessage);
+chatRouter.post('/messages', optionalProtect, validateChatMessage, sendChatMessage);
+chatRouter.get('/conversation', optionalProtect, getChatConversation);
+chatRouter.post('/new', optionalProtect, newChatConversation);
 
 export default chatRouter;

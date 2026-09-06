@@ -22,6 +22,7 @@
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
+    "express-validator": "^7.3.2",
     "inngest": "3.54.0",
     "jsonwebtoken": "^9.0.3",
     "langchain": "^1.5.10",

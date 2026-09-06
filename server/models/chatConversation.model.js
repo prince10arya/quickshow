@@ -10,7 +10,7 @@ const messageSchema = new mongoose.Schema(
 
 const chatConversationSchema = new mongoose.Schema(
   {
-    user: { type: String, required: true, index: true },
+    user: { type: String, required: false, default: null, index: true },
     messages: { type: [messageSchema], default: [] },
     draft: { type: mongoose.Schema.Types.Mixed, default: null },
     isActive: { type: Boolean, default: true, index: true },

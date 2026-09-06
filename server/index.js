@@ -13,8 +13,10 @@ import adminRouter from './routes/admin.routes.js';
 import userRouter from './routes/user.routes.js';
 import chatRouter from './routes/chat.routes.js';
 import { stripeWebHooks } from './controllers/stripewebhooks.controllers.js';
+import { notFoundHandler, globalErrorHandler } from './middlewares/error.middleware.js';
 import { setServers } from "node:dns/promises";
 setServers(["1.1.1.1"]);
+
 const app = express();
 const port = 3000;
 
@@ -32,6 +34,10 @@ app.use('/api/user', userRouter);
 app.use('/api/chat', chatRouter);
 
 app.get('/', (_req, res) => res.send('<h1>QuickShow API</h1>'));
+
+// 404 and Global Error Handler
+app.use(notFoundHandler);
+app.use(globalErrorHandler);
 
 await connectDb();
 app.listen(port, () => console.log(`Server running on http://localhost:${port}`));
