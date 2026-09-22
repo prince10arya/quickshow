@@ -5,6 +5,7 @@ import MovieGridWidget from './widgets/MovieGridWidget';
 import ShowtimesWidget from './widgets/ShowtimesWidget';
 import ToolThinkingWidget from './widgets/ToolThinkingWidget';
 import QuickPrompts from './QuickPrompts';
+import ChatMessageMarkdown from './ChatMessageMarkdown';
 
 export const ChatMessageList = ({
   messages,
@@ -50,13 +51,17 @@ export const ChatMessageList = ({
             {/* Text Bubble */}
             {(message.content || message.isStreaming) && (
               <div
-                className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed whitespace-pre-wrap ${
+                className={`max-w-[88%] rounded-2xl px-3.5 py-2.5 text-xs sm:text-sm leading-relaxed ${
                   isUser
-                    ? 'rounded-tr-sm bg-gradient-to-r from-primary to-rose-600 text-white shadow-md shadow-rose-950/40'
+                    ? 'rounded-tr-sm bg-gradient-to-r from-primary to-rose-600 text-white shadow-md shadow-rose-950/40 whitespace-pre-wrap'
                     : 'rounded-tl-sm border border-white/10 bg-zinc-900/90 text-zinc-200 shadow-md'
                 }`}
               >
-                {message.content}
+                {isUser ? (
+                  message.content
+                ) : (
+                  <ChatMessageMarkdown content={message.content} />
+                )}
                 {message.isStreaming && (
                   <span className="inline-block h-3.5 w-1.5 ml-1 animate-pulse bg-primary align-middle" />
                 )}
