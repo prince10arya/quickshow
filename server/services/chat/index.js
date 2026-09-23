@@ -18,15 +18,17 @@ export {
   settleBudget,
 };
 
-export const streamBookingAssistant = async ({ message, history = [], onEvent }) => {
-  return streamAgentExecution({ message, history, onEvent });
+export const streamBookingAssistant = async ({ message, history = [], onEvent, sessionId, userId }) => {
+  return streamAgentExecution({ message, history, onEvent, sessionId, userId });
 };
 
-export const runBookingAssistant = async ({ message, history = [] }) => {
+export const runBookingAssistant = async ({ message, history = [], sessionId, userId }) => {
   let finalResult = null;
   const result = await streamAgentExecution({
     message,
     history,
+    sessionId,
+    userId,
     onEvent: () => {},
   });
 

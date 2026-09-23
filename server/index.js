@@ -6,6 +6,9 @@ import 'dotenv/config';
 import { serve } from 'inngest/express';
 import { setServers } from 'node:dns/promises';
 
+import { initLaminar } from './services/chat/observability/laminar.js';
+initLaminar();
+
 import connectDb from './config/db.js';
 import { functions, inngest } from './inngest/index.js';
 import authRouter from './routes/auth.routes.js';

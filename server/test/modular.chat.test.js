@@ -42,8 +42,8 @@ test('date formatting generates valid YYYY-MM-DD', () => {
   assert.match(today, /^\d{4}-\d{2}-\d{2}$/);
 });
 
-test('CHAT_CONFIG configures OpenRouter model', () => {
-  assert.equal(CHAT_CONFIG.DEFAULT_MODEL, 'google/gemma-4-26b-a4b-it:free');
+test('CHAT_CONFIG configures default model', () => {
+  assert.equal(CHAT_CONFIG.DEFAULT_MODEL, 'gemma4:latest');
 });
 
 
