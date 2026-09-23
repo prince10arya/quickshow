@@ -8,6 +8,9 @@ try {
 }
 
 export const connectDb = async () => {
+  if (mongoose.connection.readyState >= 1) {
+    return;
+  }
   try {
     const uri = process.env.DB_URI;
     if (!uri) {

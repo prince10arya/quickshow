@@ -49,107 +49,109 @@ process.on('unhandledRejection', (reason) => {
   console.error('[MCP Tools Service] Unhandled Rejection:', reason);
 });
 
-// Start server
-const start = async () => {
-  await connectDb();
+const app = express();
+app.use(cors({ origin: '*' }));
+app.use(express.json());
 
-  if (isStdioMode) {
+// Ensure MongoDB is connected before handling requests
+app.use(async (_req, _res, next) => {
+  await connectDb().catch(() => {});
+  next();
+});
+
+// Health check endpoint
+app.get('/health', (_req, res) => {
+  res.json({
+    status: 'healthy',
+    service: 'quickshow-mcp-tools',
+    transport: 'sse',
+    toolCount: ALL_TOOL_DEFINITIONS.length,
+    tools: ALL_TOOL_DEFINITIONS.map((t) => t.name),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// SSE Transport endpoint with error handling
+app.get('/sse', async (req, res) => {
+  try {
+    const serverInstance = createMcpServer();
+    const transport = new SSEServerTransport('/messages', res);
+    transports.set(transport.sessionId, { transport, server: serverInstance });
+    console.log(`[MCP:Transport] 🔌 New SSE client connected (Session: ${transport.sessionId})`);
+
+    res.on('close', async () => {
+      console.log(`[MCP:Transport] 🔌 SSE connection closed (Session: ${transport.sessionId})`);
+      await serverInstance.close().catch(() => {});
+      transports.delete(transport.sessionId);
+    });
+
+    await serverInstance.connect(transport);
+  } catch (err) {
+    console.error('[MCP:Transport] ✖ SSE connection error:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Failed to establish SSE transport', message: err.message });
+    }
+  }
+});
+
+// Client messages back to MCP server with error handling
+app.post('/messages', async (req, res) => {
+  try {
+    const sessionId = req.query.sessionId;
+    if (!sessionId) {
+      console.warn('[MCP:Transport] ⚠ Missing sessionId in POST /messages');
+      return res.status(400).json({ success: false, error: 'Missing sessionId query parameter' });
+    }
+
+    const session = transports.get(sessionId);
+    if (!session) {
+      console.warn(`[MCP:Transport] ⚠ Session not found: ${sessionId}`);
+      return res.status(404).json({ success: false, error: `Session not found: ${sessionId}` });
+    }
+
+    const method = req.body?.method || 'unknown';
+    const toolCall = req.body?.params?.name ? ` [tool: ${req.body.params.name}]` : '';
+    console.log(`[MCP:Transport] 📨 POST /messages ${method}${toolCall} (Session: ${sessionId.slice(0, 8)}...)`);
+
+    await session.transport.handlePostMessage(req, res, req.body);
+  } catch (err) {
+    console.error('[MCP:Transport] ✖ Error handling message:', err.message);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: 'Failed to process message', message: err.message });
+    }
+  }
+});
+
+// 404 Route Handler
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: `Cannot ${req.method} ${req.originalUrl}` });
+});
+
+// Centralized Error Middleware
+app.use((err, req, res, _next) => {
+  console.error('[MCP Tools Service] Unhandled route error:', err);
+  res.status(err.statusCode || 500).json({
+    success: false,
+    error: err.message || 'Internal MCP Service Error',
+  });
+});
+
+// Start listening if running directly (not in Vercel serverless / test)
+if (isStdioMode) {
+  connectDb().then(async () => {
     console.log('[MCP Tools Service] Starting in STDIO transport mode...');
     const server = createMcpServer();
     const transport = new StdioServerTransport();
     await server.connect(transport);
-    return;
-  }
-
-  const app = express();
-  app.use(cors({ origin: '*' }));
-  app.use(express.json());
-
-  // Health check endpoint
-  app.get('/health', (_req, res) => {
-    res.json({
-      status: 'healthy',
-      service: 'quickshow-mcp-tools',
-      transport: 'sse',
-      toolCount: ALL_TOOL_DEFINITIONS.length,
-      tools: ALL_TOOL_DEFINITIONS.map((t) => t.name),
-      timestamp: new Date().toISOString(),
+  });
+} else if (!process.env.VERCEL) {
+  connectDb().then(() => {
+    httpServer = app.listen(PORT, () => {
+      console.log(`[MCP Tools Service] HTTP/SSE Server running on http://localhost:${PORT}`);
+      console.log(`[MCP Tools Service] SSE endpoint: http://localhost:${PORT}/sse`);
+      console.log(`[MCP Tools Service] Health endpoint: http://localhost:${PORT}/health`);
     });
   });
+}
 
-  // SSE Transport endpoint with error handling
-  app.get('/sse', async (req, res) => {
-    try {
-      const serverInstance = createMcpServer();
-      const transport = new SSEServerTransport('/messages', res);
-      transports.set(transport.sessionId, { transport, server: serverInstance });
-      console.log(`[MCP:Transport] 🔌 New SSE client connected (Session: ${transport.sessionId})`);
-
-      res.on('close', async () => {
-        console.log(`[MCP:Transport] 🔌 SSE connection closed (Session: ${transport.sessionId})`);
-        await serverInstance.close().catch(() => {});
-        transports.delete(transport.sessionId);
-      });
-
-      await serverInstance.connect(transport);
-    } catch (err) {
-      console.error('[MCP:Transport] ✖ SSE connection error:', err.message);
-      if (!res.headersSent) {
-        res.status(500).json({ success: false, error: 'Failed to establish SSE transport', message: err.message });
-      }
-    }
-  });
-
-  // Client messages back to MCP server with error handling
-  app.post('/messages', async (req, res) => {
-    try {
-      const sessionId = req.query.sessionId;
-      if (!sessionId) {
-        console.warn('[MCP:Transport] ⚠ Missing sessionId in POST /messages');
-        return res.status(400).json({ success: false, error: 'Missing sessionId query parameter' });
-      }
-
-      const session = transports.get(sessionId);
-      if (!session) {
-        console.warn(`[MCP:Transport] ⚠ Session not found: ${sessionId}`);
-        return res.status(404).json({ success: false, error: `Session not found: ${sessionId}` });
-      }
-
-      const method = req.body?.method || 'unknown';
-      const toolCall = req.body?.params?.name ? ` [tool: ${req.body.params.name}]` : '';
-      console.log(`[MCP:Transport] 📨 POST /messages ${method}${toolCall} (Session: ${sessionId.slice(0, 8)}...)`);
-
-      await session.transport.handlePostMessage(req, res, req.body);
-    } catch (err) {
-      console.error('[MCP:Transport] ✖ Error handling message:', err.message);
-      if (!res.headersSent) {
-        res.status(500).json({ success: false, error: 'Failed to process message', message: err.message });
-      }
-    }
-  });
-
-  // 404 Route Handler
-  app.use((req, res) => {
-    res.status(404).json({ success: false, error: `Cannot ${req.method} ${req.originalUrl}` });
-  });
-
-  // Centralized Error Middleware
-  app.use((err, req, res, _next) => {
-    console.error('[MCP Tools Service] Unhandled route error:', err);
-    res.status(err.statusCode || 500).json({
-      success: false,
-      error: err.message || 'Internal MCP Service Error',
-    });
-  });
-
-  httpServer = app.listen(PORT, () => {
-    console.log(`[MCP Tools Service] HTTP/SSE Server running on http://localhost:${PORT}`);
-    console.log(`[MCP Tools Service] SSE endpoint: http://localhost:${PORT}/sse`);
-    console.log(`[MCP Tools Service] Health endpoint: http://localhost:${PORT}/health`);
-  });
-};
-
-start().catch((err) => {
-  console.error('[MCP Tools Service] Fatal startup error:', err);
-  process.exit(1);
-});
+export default app;
