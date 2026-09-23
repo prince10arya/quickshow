@@ -1,80 +1,33 @@
 import { tool } from 'langchain';
-import mongoose from 'mongoose';
 import { z } from 'zod';
-import Show from '../../../models/show.model.js';
 import { CHAT_CONFIG } from '../config/chat.config.js';
-import { formatShowDate, formatShowTime } from '../utils/date.utils.js';
-import { areContiguousSeats, findContiguousSeats } from '../utils/seat.utils.js';
+import { getMcpChatTools } from '../agent/mcpClient.js';
 
 export const buildVerifiedSummary = async ({ showId, ticketCount, seats }) => {
-  if (mongoose.connection.readyState !== 1) return null;
-  if (!showId || !ticketCount || !mongoose.isValidObjectId(showId)) return null;
-
-  const show = await Show.findOne({
-    _id: showId,
-    showDateTime: { $gte: new Date().toISOString() },
-  }).populate('movie');
-
-  if (!show) return null;
-
-  const suggestedSeats = findContiguousSeats(show.occupiedSeates, ticketCount);
-  const selectedSeatsAreValid =
-    Array.isArray(seats) &&
-    seats.length === ticketCount &&
-    areContiguousSeats(seats) &&
-    seats.every((seat) => !show.occupiedSeates[seat]);
-
-  const safeSeats = selectedSeatsAreValid ? [...seats].sort() : suggestedSeats;
-  if (safeSeats.length !== ticketCount) return null;
-
-  return {
-    venue: 'QuickShow',
-    movie: {
-      id: show.movie._id.toString(),
-      title: show.movie.title,
-      poster: show.movie.poster_path,
-    },
-    show: {
-      id: show._id.toString(),
-      startsAt: show.showDateTime,
-      date: formatShowDate(show.showDateTime),
-      time: formatShowTime(show.showDateTime),
-    },
-    ticketCount,
-    seats: safeSeats,
-    pricePerTicket: show.showPrice,
-    amount: show.showPrice * ticketCount,
-  };
+  try {
+    const tools = await getMcpChatTools();
+    const mcpTool = tools.find((t) => t.name === 'prepare_booking_summary');
+    if (!mcpTool) return null;
+    const res = await mcpTool.invoke({ showId, ticketCount, seats });
+    const text = typeof res === 'string' ? res : res?.text || JSON.stringify(res);
+    const parsed = JSON.parse(text);
+    return parsed.bookingSummary || null;
+  } catch {
+    return null;
+  }
 };
 
-export const bookingSummaryHandler = async ({ showId, ticketCount, seats }) => {
-  if (mongoose.connection.readyState !== 1) {
+export const bookingSummaryHandler = async (input) => {
+  const tools = await getMcpChatTools();
+  const mcpTool = tools.find((t) => t.name === 'prepare_booking_summary');
+  if (!mcpTool) {
     return JSON.stringify({
       success: false,
-      message: 'QuickShow database is currently connecting. Please try again shortly.',
+      message: 'MCP tool prepare_booking_summary not available.',
     });
   }
-
-  try {
-    const summary = await buildVerifiedSummary({ showId, ticketCount, seats });
-    if (!summary) {
-      return JSON.stringify({
-        success: false,
-        message: 'Could not create booking summary. The show may be sold out or the seats are invalid.',
-      });
-    }
-
-    return JSON.stringify({
-      success: true,
-      message: 'Booking summary prepared successfully.',
-      bookingSummary: summary,
-    });
-  } catch (err) {
-    return JSON.stringify({
-      success: false,
-      message: `Error building summary: ${err.message}`,
-    });
-  }
+  const result = await mcpTool.invoke(input);
+  return typeof result === 'string' ? result : result?.text || JSON.stringify(result);
 };
 
 export const bookingSummaryTool = tool(bookingSummaryHandler, {
@@ -90,9 +43,11 @@ export const bookingSummaryTool = tool(bookingSummaryHandler, {
       .max(CHAT_CONFIG.MAX_TICKETS)
       .describe('Number of tickets'),
     seats: z
-      .array(z.string().regex(/^[A-J][1-9]$/))
+      .array(z.string())
       .max(CHAT_CONFIG.MAX_TICKETS)
       .optional()
       .describe('Optional seat IDs e.g. ["A1", "A2"] if specific seats chosen'),
   }),
 });
+
+export default bookingSummaryTool;

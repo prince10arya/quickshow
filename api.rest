@@ -2,7 +2,9 @@
 ### Compatible with VS Code REST Client extension, IntelliJ HTTP Client, etc.
 
 @baseUrl = http://localhost:3000
+@mcpBaseUrl = http://localhost:3002
 @contentType = application/json
+@mcpSessionId = 694538f5-b8a0-47cf-8f7d-976531d4fd0a
 
 # Token will be automatically populated or can be manually pasted here after login:
 @authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
@@ -246,4 +248,166 @@ GET {{baseUrl}}/api/bookings/seats/invalid-mongo-id-123
 
 ### 7.4 Route Not Found Error Test (Should return 404 AppError JSON)
 GET {{baseUrl}}/api/non-existent-route-xyz
+
+###############################################################################
+# 8. MCP TOOLS SERVICE (PORT 3002) - MCP SSE, TOOLS & ERROR HANDLING
+###############################################################################
+
+### 8.1 MCP Service Health Check
+GET {{mcpBaseUrl}}/health
+
+### 8.2 Establish SSE Transport Connection
+# Note: In REST Client, this opens the SSE stream and yields the endpoint event with active sessionId
+GET {{mcpBaseUrl}}/sse
+Accept: text/event-stream
+
+### 8.3 List All Registered Tools (JSON-RPC 2.0)
+POST {{mcpBaseUrl}}/messages?sessionId={{mcpSessionId}}
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/list",
+  "params": {}
+}
+
+### 8.4 Call Tool: list_all_movies
+POST {{mcpBaseUrl}}/messages?sessionId={{mcpSessionId}}
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/call",
+  "params": {
+    "name": "list_all_movies",
+    "arguments": {}
+  }
+}
+
+### 8.5 Call Tool: list_movies_by_genre
+POST {{mcpBaseUrl}}/messages?sessionId={{mcpSessionId}}
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "list_movies_by_genre",
+    "arguments": {
+      "genre": "Sci-Fi"
+    }
+  }
+}
+
+### 8.6 Call Tool: get_movie_details (by Title)
+POST {{mcpBaseUrl}}/messages?sessionId={{mcpSessionId}}
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "get_movie_details",
+    "arguments": {
+      "title": "Interstellar"
+    }
+  }
+}
+
+### 8.7 Call Tool: search_upcoming_shows
+POST {{mcpBaseUrl}}/messages?sessionId={{mcpSessionId}}
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "search_upcoming_shows",
+    "arguments": {
+      "query": "Interstellar"
+    }
+  }
+}
+
+### 8.8 Call Tool: check_show_availability
+POST {{mcpBaseUrl}}/messages?sessionId={{mcpSessionId}}
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "check_show_availability",
+    "arguments": {
+      "showId": "{{sampleShowId}}"
+    }
+  }
+}
+
+### 8.9 Call Tool: suggest_contiguous_seats
+POST {{mcpBaseUrl}}/messages?sessionId={{mcpSessionId}}
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "suggest_contiguous_seats",
+    "arguments": {
+      "showId": "{{sampleShowId}}",
+      "ticketCount": 2
+    }
+  }
+}
+
+### 8.10 Call Tool: prepare_booking_summary
+POST {{mcpBaseUrl}}/messages?sessionId={{mcpSessionId}}
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/call",
+  "params": {
+    "name": "prepare_booking_summary",
+    "arguments": {
+      "showId": "{{sampleShowId}}",
+      "ticketCount": 2,
+      "seats": ["A1", "A2"]
+    }
+  }
+}
+
+### 8.11 Error Test: Missing Session ID (Should return 400)
+POST {{mcpBaseUrl}}/messages
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "tools/list",
+  "params": {}
+}
+
+### 8.12 Error Test: Invalid Session ID (Should return 404)
+POST {{mcpBaseUrl}}/messages?sessionId=non-existent-session-id-12345
+Content-Type: {{contentType}}
+
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tools/list",
+  "params": {}
+}
+
+### 8.13 Error Test: Route Not Found (Should return 404)
+GET {{mcpBaseUrl}}/api/unknown-mcp-route
+
 

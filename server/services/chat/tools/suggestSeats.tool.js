@@ -1,58 +1,16 @@
 import { tool } from 'langchain';
-import mongoose from 'mongoose';
 import { z } from 'zod';
-import Show from '../../../models/show.model.js';
 import { CHAT_CONFIG } from '../config/chat.config.js';
-import { findContiguousSeats } from '../utils/seat.utils.js';
+import { getMcpChatTools } from '../agent/mcpClient.js';
 
-export const suggestSeatsHandler = async ({ showId, ticketCount }) => {
-  if (mongoose.connection.readyState !== 1) {
-    return JSON.stringify({
-      success: false,
-      seats: [],
-      message: 'QuickShow database is currently connecting. Please try again shortly.',
-    });
+export const suggestSeatsHandler = async (input) => {
+  const tools = await getMcpChatTools();
+  const mcpTool = tools.find((t) => t.name === 'suggest_contiguous_seats');
+  if (!mcpTool) {
+    return JSON.stringify({ success: false, seats: [], message: 'MCP tool suggest_contiguous_seats not available.' });
   }
-
-  try {
-    if (!mongoose.isValidObjectId(showId)) {
-      return JSON.stringify({ success: false, seats: [], message: 'That show is not available.' });
-    }
-
-    const show = await Show.findOne({
-      _id: showId,
-      showDateTime: { $gte: new Date().toISOString() },
-    });
-
-    if (!show) {
-      return JSON.stringify({ success: false, seats: [], message: 'That show is no longer available.' });
-    }
-
-    const seats = findContiguousSeats(show.occupiedSeates, ticketCount);
-    if (!seats.length) {
-      return JSON.stringify({
-        success: false,
-        seats: [],
-        message: `No contiguous ${ticketCount} seats remain for that show. Please consider fewer tickets or another time slot.`,
-      });
-    }
-
-    return JSON.stringify({
-      success: true,
-      seats,
-      ticketCount,
-      showId,
-      pricePerTicket: show.showPrice,
-      totalAmount: show.showPrice * ticketCount,
-      message: `Great! Contiguous seats ${seats.join(', ')} found.`,
-    });
-  } catch (err) {
-    return JSON.stringify({
-      success: false,
-      seats: [],
-      message: `Error suggesting seats: ${err.message}`,
-    });
-  }
+  const result = await mcpTool.invoke(input);
+  return typeof result === 'string' ? result : result?.text || JSON.stringify(result);
 };
 
 export const suggestSeatsTool = tool(suggestSeatsHandler, {
@@ -69,3 +27,5 @@ export const suggestSeatsTool = tool(suggestSeatsHandler, {
       .describe('Number of tickets needed (1 to 5)'),
   }),
 });
+
+export default suggestSeatsTool;
