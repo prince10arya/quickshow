@@ -1,0 +1,249 @@
+### QuickShow API Test Suite (REST Client)
+### Compatible with VS Code REST Client extension, IntelliJ HTTP Client, etc.
+
+@baseUrl = http://localhost:3000
+@contentType = application/json
+
+# Token will be automatically populated or can be manually pasted here after login:
+@authToken = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+@sampleMovieId = 687834
+@sampleShowId = 66e85d4bf591a27e02dfaa12
+
+###############################################################################
+# 1. HEALTH & BASE
+###############################################################################
+
+### Health Check
+GET {{baseUrl}}/
+Accept: text/html
+
+###############################################################################
+# 2. CHAT SERVICE & AI CONCIERGE (SSE & STREAMING)
+###############################################################################
+
+### 2.1 SSE Token Streaming (General Greeting)
+POST {{baseUrl}}/api/chat/stream
+Content-Type: {{contentType}}
+Accept: text/event-stream
+
+{
+  "message": "Hello! What can you help me with?"
+}
+
+### 2.2 SSE Token Streaming (List All Movies Tool Call)
+POST {{baseUrl}}/api/chat/stream
+Content-Type: {{contentType}}
+Accept: text/event-stream
+
+{
+  "message": "What movies are currently playing at QuickShow?"
+}
+
+### 2.3 SSE Token Streaming (List Movies by Genre Tool Call)
+POST {{baseUrl}}/api/chat/stream
+Content-Type: {{contentType}}
+Accept: text/event-stream
+
+{
+  "message": "Can you recommend some good Sci-Fi or Action movies?"
+}
+
+### 2.4 SSE Token Streaming (Movie Details Tool Call)
+POST {{baseUrl}}/api/chat/stream
+Content-Type: {{contentType}}
+Accept: text/event-stream
+
+{
+  "message": "Tell me the synopsis, runtime, and cast of Interstellar."
+}
+
+### 2.5 SSE Token Streaming (Search Upcoming Shows Tool Call)
+POST {{baseUrl}}/api/chat/stream
+Content-Type: {{contentType}}
+Accept: text/event-stream
+
+{
+  "message": "When is Interstellar showing tomorrow evening?"
+}
+
+### 2.6 SSE Token Streaming (Suggest Contiguous Seats Tool Call)
+POST {{baseUrl}}/api/chat/stream
+Content-Type: {{contentType}}
+Accept: text/event-stream
+
+{
+  "message": "I want 2 tickets for showId 66e85d4bf591a27e02dfaa12. Can you suggest seats together?"
+}
+
+### 2.7 SSE Token Streaming with Guest History
+POST {{baseUrl}}/api/chat/stream
+Content-Type: {{contentType}}
+Accept: text/event-stream
+
+{
+  "message": "What are the showtimes for it?",
+  "guestHistory": [
+    { "role": "user", "content": "I want to watch Interstellar" },
+    { "role": "assistant", "content": "Interstellar is a fantastic sci-fi movie directed by Christopher Nolan! Would you like to check today's showtimes?" }
+  ]
+}
+
+### 2.8 Chat Messages (Sync Fallback)
+POST {{baseUrl}}/api/chat/messages
+Content-Type: {{contentType}}
+
+{
+  "message": "What movies do you have playing today?"
+}
+
+### 2.9 Get Active Chat Conversation (Requires Auth)
+GET {{baseUrl}}/api/chat/conversation
+Authorization: Bearer {{authToken}}
+
+### 2.10 Reset / Start New Chat Conversation (Requires Auth)
+POST {{baseUrl}}/api/chat/new
+Authorization: Bearer {{authToken}}
+Content-Type: {{contentType}}
+
+{}
+
+###############################################################################
+# 3. AUTHENTICATION ENDPOINTS
+###############################################################################
+
+### 3.1 Register User
+# @name registerUser
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "Movie Fan",
+  "email": "moviefan@example.com",
+  "password": "Password123!"
+}
+
+### 3.2 Login User
+# @name loginUser
+POST {{baseUrl}}/api/auth/login
+Content-Type: {{contentType}}
+
+{
+  "email": "moviefan@example.com",
+  "password": "Password123!"
+}
+
+### 3.3 Get Current Profile (Me)
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{authToken}}
+
+### 3.4 Refresh Token
+POST {{baseUrl}}/api/auth/refresh
+Content-Type: {{contentType}}
+
+### 3.5 Logout
+POST {{baseUrl}}/api/auth/logout
+Content-Type: {{contentType}}
+
+###############################################################################
+# 4. SHOWS & MOVIES ENDPOINTS
+###############################################################################
+
+### 4.1 Get All Shows (Public)
+GET {{baseUrl}}/api/shows/all
+
+### 4.2 Get Specific Movie Shows & Timings
+GET {{baseUrl}}/api/shows/{{sampleMovieId}}
+
+### 4.3 Get Now Showing / Popular Movies (Admin Protected)
+GET {{baseUrl}}/api/shows/nowshowing
+Authorization: Bearer {{authToken}}
+
+### 4.4 Add New Show (Admin Protected)
+POST {{baseUrl}}/api/shows/addshow
+Authorization: Bearer {{authToken}}
+Content-Type: {{contentType}}
+
+{
+  "movieId": "{{sampleMovieId}}",
+  "showPrice": 250,
+  "showsInput": [
+    {
+      "date": "2026-09-08",
+      "time": ["18:00:00", "21:30:00"]
+    }
+  ]
+}
+
+###############################################################################
+# 5. BOOKINGS & SEATS ENDPOINTS
+###############################################################################
+
+### 5.1 Get Occupied Seats for a Show
+GET {{baseUrl}}/api/bookings/seats/{{sampleShowId}}
+
+### 5.2 Create Booking (Requires Auth)
+POST {{baseUrl}}/api/bookings/create
+Authorization: Bearer {{authToken}}
+Content-Type: {{contentType}}
+
+{
+  "showId": "{{sampleShowId}}",
+  "selectedSeats": ["A4", "A5"]
+}
+
+### 5.3 Dummy Payment Confirm (Webhook / Local Redirect)
+GET {{baseUrl}}/api/bookings/confirm-dummy/sampleBookingId123
+
+###############################################################################
+# 6. USER PROFILE & FAVORITES
+###############################################################################
+
+### 6.1 Get User Bookings (Requires Auth)
+GET {{baseUrl}}/api/user/bookings
+Authorization: Bearer {{authToken}}
+
+### 6.2 Get User Booking History (Requires Auth)
+GET {{baseUrl}}/api/user/history
+Authorization: Bearer {{authToken}}
+
+### 6.3 Get User Favorites (Requires Auth)
+GET {{baseUrl}}/api/user/favourites
+Authorization: Bearer {{authToken}}
+
+### 6.4 Update Favorite Movie (Requires Auth)
+POST {{baseUrl}}/api/user/update-favourite
+Authorization: Bearer {{authToken}}
+Content-Type: {{contentType}}
+
+{
+  "movieId": "{{sampleMovieId}}"
+}
+
+###############################################################################
+# 7. VALIDATION & GLOBAL ERROR TESTS
+###############################################################################
+
+### 7.1 Validation Error Test: Empty Chat Message (Should return 400 with errors array)
+POST {{baseUrl}}/api/chat/stream
+Content-Type: {{contentType}}
+
+{
+  "message": ""
+}
+
+### 7.2 Validation Error Test: Invalid Register Body (Invalid email, short password)
+POST {{baseUrl}}/api/auth/register
+Content-Type: {{contentType}}
+
+{
+  "name": "",
+  "email": "not-an-email",
+  "password": "123"
+}
+
+### 7.3 Validation Error Test: Invalid Mongo ID in Booking Seats Param
+GET {{baseUrl}}/api/bookings/seats/invalid-mongo-id-123
+
+### 7.4 Route Not Found Error Test (Should return 404 AppError JSON)
+GET {{baseUrl}}/api/non-existent-route-xyz
+

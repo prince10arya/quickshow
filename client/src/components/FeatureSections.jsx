@@ -30,8 +30,8 @@ const FeatureSections = () => {
         </button>
       </div>
       <div className="px-4 sm:px-8 py-8 flex flex-row gap-3 flex-wrap w-48 h-48 sm:w-full sm:h-full">
-        {shows.map((movie) => (
-          <div key={movie.id} className="keen-slider__slide">
+        {shows.map((movie, index) => (
+          <div key={index} className="keen-slider__slide">
             <MovieCard movie={movie} />
           </div>
         ))}

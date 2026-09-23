@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { dummyTrailers } from "../assets/assets";
 import ReactPlayer from "react-player";
 import screenfull from "screenfull";
@@ -22,38 +22,7 @@ const TrailerSection = () => {
   };
 
   // Keyboard Shortcuts
-  useEffect(() => {
-    const handleKey = (e) => {
-      if (!playerRef.current) return;
-
-      switch (e.code) {
-        case "Space":
-          setIsPlaying((prev) => !prev);
-          e.preventDefault();
-          break;
-        case "KeyM":
-          setIsMuted((prev) => !prev);
-          break;
-        case "ArrowRight":
-          playerRef.current.seekTo(playerRef.current.getCurrentTime() + 5);
-          break;
-        case "ArrowLeft":
-          playerRef.current.seekTo(playerRef.current.getCurrentTime() - 5);
-          break;
-        case "KeyF":
-          toggleFullscreen();
-          break;
-        case "KeyP":
-          setPip((prev) => !prev);
-          break;
-        default:
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+ 
 
   const showControls = !isPlaying || isHovered;
 

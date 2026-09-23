@@ -12,13 +12,16 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.1.10",
     "axios": "^1.10.0",
+    "framer-motion": "^13.4.1",
     "keen-slider": "^6.8.6",
     "lucide-react": "^0.517.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hot-toast": "^2.5.2",
+    "react-markdown": "^10.1.0",
     "react-player": "^2.16.0",
     "react-router-dom": "^7.6.2",
+    "remark-gfm": "^4.0.1",
     "screenfull": "^6.0.2",
     "tailwindcss": "^4.1.10"
   },
