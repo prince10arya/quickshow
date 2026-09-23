@@ -6,6 +6,6 @@ export const CHAT_CONFIG = {
   OUTPUT_USD_PER_MILLION: Number(process.env.CHAT_OUTPUT_USD_PER_MILLION || 0.3),
   MAX_TICKETS: 5,
   MAX_HISTORY: 14,
-  DEFAULT_MODEL: process.env.CHAT_MODEL || 'openai/gpt-oss-20b',
+  DEFAULT_MODEL: process.env.CHAT_MODEL || 'google/gemma-4-26b-a4b-it:free',
   TEMPERATURE: 0.2,
 };
