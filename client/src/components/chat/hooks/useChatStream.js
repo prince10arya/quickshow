@@ -1,5 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useAppContext } from '../../../context/AppContext';
+import { agentEventReducer, INITIAL_AGENT_EVENTS } from '../agent/eventReducer.js';
+import { selectActivities, selectCurrentActivity, selectAgentStatus } from '../agent/activityUtils.js';
+import { selectCurrentBookingStep, selectCompletedSteps } from '../agent/bookingProgress.js';
 
 const GUEST_HISTORY_KEY = 'quickshow-guest-chat-history';
 
@@ -20,6 +23,16 @@ export const useChatStream = () => {
   const [activeTool, setActiveTool] = useState(null);
   const [error, setError] = useState('');
   const abortControllerRef = useRef(null);
+
+  // Normalized agent event stream
+  const [agentEvents, dispatchAgentEvent] = useReducer(agentEventReducer, INITIAL_AGENT_EVENTS);
+
+  // Derived state from the single source of truth (agentEvents)
+  const activities = useMemo(() => selectActivities(agentEvents), [agentEvents]);
+  const currentActivity = useMemo(() => selectCurrentActivity(agentEvents), [agentEvents]);
+  const agentStatus = useMemo(() => selectAgentStatus(agentEvents, loading), [agentEvents, loading]);
+  const currentStep = useMemo(() => selectCurrentBookingStep(agentEvents, messages), [agentEvents, messages]);
+  const completedSteps = useMemo(() => selectCompletedSteps(agentEvents, messages), [agentEvents, messages]);
 
   // Sync guest history to session storage
   useEffect(() => {
@@ -82,10 +95,15 @@ export const useChatStream = () => {
 
   const abortStream = useCallback(() => {
     if (abortControllerRef.current) {
+      console.log('[Client:Chat] ⏹️ Aborting active stream');
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setLoading(false);
       setActiveTool(null);
+      dispatchAgentEvent({
+        type: 'AGENT_STATUS',
+        payload: { status: 'idle', message: 'Stream stopped' },
+      });
     }
   }, []);
 
@@ -117,6 +135,12 @@ export const useChatStream = () => {
 
       try {
         const token = await getToken();
+        console.log('[Client:Chat] 🚀 Dispatching message:', {
+          message: content.slice(0, 80),
+          conversationId,
+          isGuest: !token,
+        });
+
         const headers = {
           'Content-Type': 'application/json',
         };
@@ -135,6 +159,7 @@ export const useChatStream = () => {
         };
 
         const baseUrl = import.meta.env.VITE_BASE_URL || '';
+        console.log('[Client:Chat] 📡 SSE connection initiated to /api/chat/stream');
         const response = await fetch(`${baseUrl}/api/chat/stream`, {
           method: 'POST',
           headers,
@@ -151,6 +176,7 @@ export const useChatStream = () => {
         const decoder = new TextDecoder('utf-8');
         let buffer = '';
         let streamedContent = '';
+        let tokenCount = 0;
         const accumulatedWidgets = [];
         let finalBookingSummary = null;
 
@@ -173,6 +199,10 @@ export const useChatStream = () => {
               const event = JSON.parse(rawData);
 
               if (event.type === 'token') {
+                if (tokenCount === 0) {
+                  console.log('[Client:Chat] 💬 First token received from stream');
+                }
+                tokenCount++;
                 streamedContent += event.token;
                 setMessages((prev) => {
                   const updated = [...prev];
@@ -186,9 +216,27 @@ export const useChatStream = () => {
                   return updated;
                 });
               } else if (event.type === 'tool_start') {
+                console.log(`[Client:Chat] ⚙️ tool_start received: "${event.tool}"`, event.input);
                 setActiveTool({ name: event.tool, input: event.input });
+                dispatchAgentEvent({
+                  type: 'TOOL_START',
+                  payload: { toolName: event.tool, input: event.input, timestamp: Date.now() },
+                });
               } else if (event.type === 'tool_end') {
+                console.log(`[Client:Chat] ⚙️ tool_end received: "${event.tool}"`, {
+                  hasWidget: !!event.widget,
+                  widgetType: event.widget?.type,
+                });
                 setActiveTool(null);
+                dispatchAgentEvent({
+                  type: 'TOOL_SUCCESS',
+                  payload: {
+                    toolName: event.tool,
+                    output: event.output,
+                    timestamp: Date.now(),
+                  },
+                });
+
                 if (event.widget) {
                   accumulatedWidgets.push(event.widget);
                   if (event.widget.type === 'booking_summary') {
@@ -208,6 +256,7 @@ export const useChatStream = () => {
                   });
                 }
               } else if (event.type === 'ui') {
+                console.log(`[Client:Chat] 🎨 ui event received: ${event.widget?.type}`);
                 if (event.widget) {
                   accumulatedWidgets.push(event.widget);
                   if (event.widget.type === 'booking_summary') {
@@ -227,6 +276,13 @@ export const useChatStream = () => {
                   });
                 }
               } else if (event.type === 'done') {
+                console.log('[Client:Chat] ✅ Stream complete [done]:', {
+                  conversationId: event.conversationId,
+                  chars: streamedContent.length,
+                  tokenCount,
+                  widgets: accumulatedWidgets.length,
+                  hasBookingSummary: !!event.bookingSummary,
+                });
                 if (event.conversationId) {
                   setConversationId(event.conversationId);
                 }
@@ -247,7 +303,15 @@ export const useChatStream = () => {
                   return updated;
                 });
               } else if (event.type === 'error') {
+                console.error('[Client:Chat] ❌ Stream error event:', event.message);
                 setError(event.message || 'An error occurred during streaming.');
+                dispatchAgentEvent({
+                  type: 'TOOL_ERROR',
+                  payload: {
+                    message: event.message,
+                    timestamp: Date.now(),
+                  },
+                });
               }
             } catch (parseErr) {
               console.warn('Could not parse SSE chunk:', rawData, parseErr);
@@ -268,8 +332,19 @@ export const useChatStream = () => {
           return updated;
         });
       } catch (reqErr) {
-        if (reqErr.name === 'AbortError') return;
+        if (reqErr.name === 'AbortError') {
+          console.log('[Client:Chat] ⏹️ Stream aborted by user');
+          return;
+        }
+        console.error('[Client:Chat] ❌ Stream request failed:', reqErr.message);
         setError(reqErr.message || 'The assistant is currently unavailable.');
+        dispatchAgentEvent({
+          type: 'TOOL_ERROR',
+          payload: {
+            message: reqErr.message || 'The assistant is currently unavailable.',
+            timestamp: Date.now(),
+          },
+        });
         // Clean up empty assistant message on failure
         setMessages((prev) => {
           const last = prev.at(-1);
@@ -288,9 +363,11 @@ export const useChatStream = () => {
   );
 
   const startNewChat = useCallback(async () => {
+    console.log('[Client:Chat] 🔄 Starting new chat session');
     abortStream();
     setError('');
     setActiveTool(null);
+    dispatchAgentEvent({ type: 'RESET' });
     try {
       const token = await getToken();
       const { data } = await axios.post(
@@ -317,5 +394,14 @@ export const useChatStream = () => {
     sendMessage,
     abortStream,
     startNewChat,
+    // Agentic state
+    agentEvents,
+    activities,
+    currentActivity,
+    agentStatus,
+    currentStep,
+    completedSteps,
   };
 };
+
+export default useChatStream;

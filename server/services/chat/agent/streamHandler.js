@@ -3,7 +3,7 @@ import { createBookingConciergeAgent } from './agent.factory.js';
 
 export const streamAgentExecution = async ({ message, history = [], onEvent }) => {
   const month = await reserveBudget();
-  const agent = createBookingConciergeAgent();
+  const agent = await createBookingConciergeAgent();
 
   const formattedHistory = (history || []).map((msg) => ({
     role: msg.role === 'assistant' ? 'assistant' : 'user',
@@ -11,6 +11,10 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
   }));
 
   const inputMessages = [...formattedHistory, { role: 'user', content: message }];
+
+  console.log(
+    `[Server:Agent] 🤖 Starting execution | msg: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}" | history: ${formattedHistory.length} msgs`
+  );
 
   let accumulatedText = '';
   let activeBookingSummary = null;
@@ -46,6 +50,7 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
             // keep as string
           }
         }
+        console.log(`[Server:Agent] 🛠️ on_tool_start: "${event.name}" | input:`, input);
         onEvent({
           type: 'tool_start',
           tool: event.name,
@@ -55,6 +60,11 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
         let parsedOutput = event.data?.output;
         if (parsedOutput && typeof parsedOutput === 'object' && 'content' in parsedOutput) {
           parsedOutput = parsedOutput.content;
+        }
+        if (Array.isArray(parsedOutput) && parsedOutput[0]?.text) {
+          parsedOutput = parsedOutput[0].text;
+        } else if (parsedOutput && typeof parsedOutput === 'object' && typeof parsedOutput.text === 'string') {
+          parsedOutput = parsedOutput.text;
         }
         if (typeof parsedOutput === 'string') {
           try {
@@ -89,6 +99,10 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
           }
         }
 
+        console.log(
+          `[Server:Agent] 🛠️ on_tool_end: "${event.name}" | widget: ${widget ? widget.type : 'none'}`
+        );
+
         onEvent({
           type: 'tool_end',
           tool: event.name,
@@ -104,15 +118,21 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
       }
     }
 
-    await settleBudget(month, capturedMessages);
+    console.log(
+      `[Server:Agent] 🏁 Execution completed | chars: ${accumulatedText.length} | widgets: ${generativeWidgets.length} | summary: ${activeBookingSummary ? 'yes' : 'no'}`
+    );
 
     return {
       message: accumulatedText.trim(),
       bookingSummary: activeBookingSummary,
       generativeWidgets,
     };
-  } catch (error) {
-    await settleBudget(month, capturedMessages);
-    throw error;
+  } catch (agentErr) {
+    console.error(`[Server:Agent] ❌ Agent stream error:`, agentErr.message);
+    throw agentErr;
+  } finally {
+    await settleBudget(month, capturedMessages).catch((err) => {
+      console.error('[Server:Agent] Error settling budget:', err.message);
+    });
   }
 };
