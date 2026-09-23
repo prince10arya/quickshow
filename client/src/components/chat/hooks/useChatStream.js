@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { useAppContext } from '../../../context/AppContext';
 import { agentEventReducer, INITIAL_AGENT_EVENTS } from '../agent/eventReducer.js';
-import { selectActivities, selectCurrentActivity, selectAgentStatus } from '../agent/activityUtils.js';
+import { selectActivities, selectCurrentActivity, selectAgentStatus, selectThinkingSteps } from '../agent/activityUtils.js';
 import { selectCurrentBookingStep, selectCompletedSteps } from '../agent/bookingProgress.js';
 
 const GUEST_HISTORY_KEY = 'quickshow-guest-chat-history';
@@ -31,6 +31,7 @@ export const useChatStream = () => {
   const activities = useMemo(() => selectActivities(agentEvents), [agentEvents]);
   const currentActivity = useMemo(() => selectCurrentActivity(agentEvents), [agentEvents]);
   const agentStatus = useMemo(() => selectAgentStatus(agentEvents, loading), [agentEvents, loading]);
+  const thinkingSteps = useMemo(() => selectThinkingSteps(agentEvents, loading), [agentEvents, loading]);
   const currentStep = useMemo(() => selectCurrentBookingStep(agentEvents, messages), [agentEvents, messages]);
   const completedSteps = useMemo(() => selectCompletedSteps(agentEvents, messages), [agentEvents, messages]);
 
@@ -129,6 +130,7 @@ export const useChatStream = () => {
 
       setMessages([...currentHistory, assistantPlaceholder]);
       setLoading(true);
+      dispatchAgentEvent({ type: 'RESET' });
 
       const controller = new AbortController();
       abortControllerRef.current = controller;
@@ -399,6 +401,7 @@ export const useChatStream = () => {
     activities,
     currentActivity,
     agentStatus,
+    thinkingSteps,
     currentStep,
     completedSteps,
   };

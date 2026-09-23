@@ -14,6 +14,7 @@ import {
   selectActivities,
   selectAgentStatus,
   selectCurrentActivity,
+  selectThinkingSteps,
 } from '../src/components/chat/agent/activityUtils.js';
 import {
   BOOKING_STEPS,
@@ -256,4 +257,46 @@ test('11. accessibility states and step metadata conform to UX specs', () => {
     assert.ok(meta.description);
     assert.equal(typeof meta.order, 'number');
   }
+});
+
+// 12. Thinking Steps Breadcrumb Chain (Cinema & Ticket Booking Domain)
+test('12. selectThinkingSteps produces cinema domain step progression', () => {
+  // When loading starts before any tool is triggered:
+  let steps = selectThinkingSteps([], true);
+  assert.equal(steps.length, 1);
+  assert.equal(steps[0].label, 'Thinking...');
+  assert.equal(steps[0].status, 'active');
+
+  // When list_all_movies starts:
+  let events = agentEventReducer([], {
+    type: 'TOOL_START',
+    payload: { toolName: 'list_all_movies' },
+  });
+  steps = selectThinkingSteps(events, true);
+  assert.equal(steps.length, 2);
+  assert.equal(steps[0].label, 'Thinking...');
+  assert.equal(steps[0].status, 'completed');
+  assert.equal(steps[1].label, 'Getting movies');
+  assert.equal(steps[1].status, 'active');
+
+  // When list_all_movies succeeds and list_movies_by_genre starts:
+  events = agentEventReducer(events, {
+    type: 'TOOL_SUCCESS',
+    payload: { toolName: 'list_all_movies' },
+  });
+  events = agentEventReducer(events, {
+    type: 'TOOL_START',
+    payload: { toolName: 'list_movies_by_genre', input: { genre: 'Action' } },
+  });
+  steps = selectThinkingSteps(events, true);
+  assert.equal(steps.length, 3);
+  assert.equal(steps[0].status, 'completed');
+  assert.equal(steps[1].label, 'Getting movies');
+  assert.equal(steps[1].status, 'completed');
+  assert.equal(steps[2].label, 'Getting list by favorite genre');
+  assert.equal(steps[2].status, 'active');
+
+  // When stream finishes (loading = false):
+  steps = selectThinkingSteps(events, false);
+  assert.equal(steps.length, 0);
 });

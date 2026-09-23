@@ -1,6 +1,38 @@
 import { reserveBudget, settleBudget } from '../budget/budget.service.js';
 import { createBookingConciergeAgent } from './agent.factory.js';
 
+const extractJsonPayload = (raw) => {
+  let current = raw;
+  for (let i = 0; i < 5; i++) {
+    if (!current) break;
+    if (typeof current === 'object') {
+      if ('content' in current) {
+        current = current.content;
+        continue;
+      }
+      if (Array.isArray(current) && current[0]?.text) {
+        current = current[0].text;
+        continue;
+      }
+      if (typeof current.text === 'string') {
+        current = current.text;
+        continue;
+      }
+    }
+    if (typeof current === 'string') {
+      try {
+        const parsed = JSON.parse(current);
+        current = parsed;
+        continue;
+      } catch {
+        break;
+      }
+    }
+    break;
+  }
+  return current;
+};
+
 export const streamAgentExecution = async ({ message, history = [], onEvent }) => {
   const month = await reserveBudget();
   const agent = await createBookingConciergeAgent();
@@ -57,22 +89,7 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
           input,
         });
       } else if (event.event === 'on_tool_end') {
-        let parsedOutput = event.data?.output;
-        if (parsedOutput && typeof parsedOutput === 'object' && 'content' in parsedOutput) {
-          parsedOutput = parsedOutput.content;
-        }
-        if (Array.isArray(parsedOutput) && parsedOutput[0]?.text) {
-          parsedOutput = parsedOutput[0].text;
-        } else if (parsedOutput && typeof parsedOutput === 'object' && typeof parsedOutput.text === 'string') {
-          parsedOutput = parsedOutput.text;
-        }
-        if (typeof parsedOutput === 'string') {
-          try {
-            parsedOutput = JSON.parse(parsedOutput);
-          } catch {
-            // raw string
-          }
-        }
+        let parsedOutput = extractJsonPayload(event.data?.output);
 
         let widget = null;
         if (parsedOutput && typeof parsedOutput === 'object') {

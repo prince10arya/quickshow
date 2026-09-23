@@ -177,3 +177,41 @@ export const selectAgentStatus = (events, isStreaming = false) => {
     label: 'Ready',
   };
 };
+
+/**
+ * Select the chain of thinking steps executed during the current assistant turn.
+ * Uses cinema domain language: Thinking... -> Getting movies -> Getting list by favorite genre
+ *
+ * @param {import('./types').AgentEvent[]} events
+ * @param {boolean} [loading]
+ * @returns {{ id: string, label: string, status: 'active' | 'completed' | 'error' }[]}
+ */
+export const selectThinkingSteps = (events, loading = false) => {
+  if (!loading) {
+    return [];
+  }
+
+  const activities = selectActivities(events);
+
+  /** @type {{ id: string, label: string, status: 'active' | 'completed' | 'error' }[]} */
+  const steps = [
+    {
+      id: 'step_thinking',
+      label: 'Thinking...',
+      status: activities.length > 0 ? 'completed' : 'active',
+    },
+  ];
+
+  for (const act of activities) {
+    const meta = getToolMetadata(act.toolName);
+    const label = meta.thinkingStep || meta.label || 'Checking cinema data';
+    steps.push({
+      id: act.id,
+      label,
+      status: act.status === 'running' ? 'active' : act.status === 'error' ? 'error' : 'completed',
+    });
+  }
+
+  return steps;
+};
+

@@ -4,8 +4,7 @@ import ChatHeader from './ChatHeader';
 import ChatInput from './ChatInput';
 import ChatMessageList from './ChatMessageList';
 import BookingProgress from './BookingProgress/BookingProgress';
-import AgentStatus from './AgentStatus/AgentStatus';
-import AgentActivityLog from './AgentActivityLog/AgentActivityLog';
+import AgentThinking from './AgentThinking/AgentThinking';
 import { useChatStream } from './hooks/useChatStream';
 
 export const BookingAssistant = ({ onClose }) => {
@@ -18,9 +17,8 @@ export const BookingAssistant = ({ onClose }) => {
     sendMessage,
     abortStream,
     startNewChat,
-    // Agentic Stepper, Status & Activity Log state
-    activities,
-    agentStatus,
+    // Agentic Stepper & Thinking Step Progression
+    thinkingSteps,
     currentStep,
     completedSteps,
   } = useChatStream();
@@ -117,15 +115,8 @@ export const BookingAssistant = ({ onClose }) => {
           onSelectPrompt={handleSelectPrompt}
         />
 
-        {/* 2 & 3. Live Status Loader & Expandable Agent Activity Log */}
-        {(loading || activities.length > 0) && (
-          <div className="space-y-1.5 border-t border-white/10 bg-zinc-950/70 px-3 py-2 backdrop-blur-md">
-            <AgentStatus status={agentStatus.status} label={agentStatus.label} />
-            {activities.length > 0 && (
-              <AgentActivityLog activities={activities} />
-            )}
-          </div>
-        )}
+        {/* Dynamic Cinema-Domain Thinking Indicator (Thinking... -> Getting movies -> ...) */}
+        <AgentThinking thinkingSteps={thinkingSteps} loading={loading} />
 
         {/* Error Alert */}
         {displayedError && (

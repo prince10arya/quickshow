@@ -11,13 +11,15 @@ import { Film, Search, Sparkles, Ticket, Users, CheckCircle2 } from 'lucide-reac
 export const TOOL_METADATA = {
   list_all_movies: {
     label: 'Finding movies',
+    thinkingStep: 'Getting movies',
     successLabel: 'Found available movies',
     step: 'discover',
     icon: Film,
-    description: 'Browsing theater catalog for available movies',
+    description: 'Browsing cinema catalog for available movies',
   },
   list_movies_by_genre: {
     label: 'Finding movies by genre',
+    thinkingStep: 'Getting list by favorite genre',
     successLabel: 'Filtered movies by genre',
     step: 'discover',
     icon: Film,
@@ -25,6 +27,7 @@ export const TOOL_METADATA = {
   },
   get_movie_details: {
     label: 'Getting movie details',
+    thinkingStep: 'Checking movie details',
     successLabel: 'Retrieved movie details',
     step: 'movie',
     icon: Sparkles,
@@ -32,6 +35,7 @@ export const TOOL_METADATA = {
   },
   search_upcoming_shows: {
     label: 'Finding upcoming shows',
+    thinkingStep: 'Checking available showtimes',
     successLabel: 'Found upcoming shows',
     step: 'show',
     icon: Search,
@@ -39,6 +43,7 @@ export const TOOL_METADATA = {
   },
   check_show_availability: {
     label: 'Checking show availability',
+    thinkingStep: 'Checking seat availability',
     successLabel: 'Checked show availability',
     step: 'show',
     icon: Ticket,
@@ -46,6 +51,7 @@ export const TOOL_METADATA = {
   },
   suggest_contiguous_seats: {
     label: 'Finding seats together',
+    thinkingStep: 'Selecting adjacent seats',
     successLabel: 'Found seats together',
     step: 'seats',
     icon: Users,
@@ -53,6 +59,7 @@ export const TOOL_METADATA = {
   },
   prepare_booking_summary: {
     label: 'Preparing booking summary',
+    thinkingStep: 'Preparing ticket summary',
     successLabel: 'Booking summary ready',
     step: 'review',
     icon: CheckCircle2,
@@ -75,6 +82,7 @@ export const TOOL_STEP_MAP = Object.freeze(
  */
 export const DEFAULT_TOOL_METADATA = {
   label: 'Working on your request',
+  thinkingStep: 'Checking cinema data',
   successLabel: 'Completed request',
   step: 'discover',
   icon: Sparkles,
