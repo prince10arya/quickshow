@@ -5,7 +5,10 @@
       "src": "index.js",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["dist/**"]
+        "includeFiles": [
+          "node_modules/openai/**",
+          "node_modules/@langchain/**"
+        ]
       }
     }
   ],

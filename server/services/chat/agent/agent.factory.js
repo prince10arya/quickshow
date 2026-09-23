@@ -1,5 +1,3 @@
-import { ChatOllama } from '@langchain/ollama';
-import { ChatOpenAI } from '@langchain/openai';
 import { createAgent } from 'langchain';
 import { CHAT_CONFIG } from '../config/chat.config.js';
 import { buildSystemPrompt } from '../prompts/systemPrompt.js';
@@ -17,6 +15,7 @@ export const createBookingConciergeAgent = async ({ modelName = CHAT_CONFIG.DEFA
   let model;
 
   if (isOllama) {
+    const { ChatOllama } = await import('@langchain/ollama');
     const ollamaModelName = modelName?.startsWith('gemma4') ? modelName : process.env.OLLAMA_MODEL || 'gemma4:latest';
     const baseUrl = process.env.OLLAMA_BASE_URL || 'http://localhost:11434';
     console.log(`[Server:Agent] 🦙 Initializing ChatOllama (${ollamaModelName} at ${baseUrl})`);
@@ -26,6 +25,7 @@ export const createBookingConciergeAgent = async ({ modelName = CHAT_CONFIG.DEFA
       temperature: CHAT_CONFIG.TEMPERATURE,
     });
   } else {
+    const { ChatOpenAI } = await import('@langchain/openai');
     const apiKey = process.env.OPENROUTER_API_KEY || process.env.GROQ_API_KEY;
     if (!apiKey) {
       const error = new Error('The booking assistant is not configured (missing OPENROUTER_API_KEY).');
