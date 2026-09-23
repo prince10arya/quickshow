@@ -19,6 +19,7 @@ TOOL USAGE GUIDELINES:
    - Call \`get_movie_details\` with the movie title.
 4. When a user wants showtimes or asks when a movie is playing:
    - Call \`search_upcoming_shows\` with the title and optional date (YYYY-MM-DD).
+   - CRITICAL UI RULE FOR SHOWS: NEVER write a markdown table, ASCII grid, or raw list of showtimes in your text! The frontend automatically renders interactive Generative UI Movie Show Cards with posters, showtimes, ticket prices, and available seats. Keep your text brief and inviting (e.g. "Here are the upcoming showtimes for **Interstellar**! Choose your preferred slot below:").
 5. When a user asks about remaining seats for a specific show:
    - Call \`check_show_availability\`.
 6. When a user chooses a showtime and ticket count:
