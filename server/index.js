@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import mongoose from 'mongoose';
 import 'dotenv/config';
 import { serve } from 'inngest/express';
+import { setServers } from 'node:dns/promises';
 
 import connectDb from './config/db.js';
 import { functions, inngest } from './inngest/index.js';
@@ -14,11 +16,39 @@ import userRouter from './routes/user.routes.js';
 import chatRouter from './routes/chat.routes.js';
 import { stripeWebHooks } from './controllers/stripewebhooks.controllers.js';
 import { notFoundHandler, globalErrorHandler } from './middlewares/error.middleware.js';
-import { setServers } from "node:dns/promises";
-setServers(["1.1.1.1"]);
+import { closeMcpClient } from './services/chat/agent/mcpClient.js';
+
+try {
+  setServers(['1.1.1.1']);
+} catch {
+  // Ignore if unsupported
+}
 
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
+let server = null;
+
+// Graceful shutdown & Process error handlers
+const shutdown = async (signal) => {
+  console.log(`[Server] ${signal} received. Initiating graceful shutdown...`);
+  if (server) {
+    server.close(() => console.log('[Server] HTTP server closed'));
+  }
+  await closeMcpClient().catch(() => {});
+  await mongoose.connection.close().catch(() => {});
+  process.exit(0);
+};
+
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+process.on('uncaughtException', (err) => {
+  console.error('[Server] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Server] Unhandled Rejection:', reason);
+});
 
 app.use(express.json());
 app.use(cors({ origin: process.env.CLIENT_URL || true, credentials: true }));
@@ -40,4 +70,4 @@ app.use(notFoundHandler);
 app.use(globalErrorHandler);
 
 await connectDb();
-app.listen(port, () => console.log(`Server running on http://localhost:${port}`));
+server = app.listen(port, () => console.log(`Server running on http://localhost:${port}`));

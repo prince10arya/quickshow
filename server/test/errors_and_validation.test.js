@@ -71,3 +71,17 @@ test('notFoundHandler passes 404 AppError to next', () => {
   assert.equal(nextArg.code, 'ROUTE_NOT_FOUND');
   assert.equal(nextArg.message, 'Cannot GET /api/non-existent');
 });
+
+test('ServiceUnavailableError sets 503 status and SERVICE_UNAVAILABLE code', async () => {
+  const { ServiceUnavailableError } = await import('../errors/appError.js');
+  const err = new ServiceUnavailableError('MCP service down');
+  assert.equal(err.statusCode, 503);
+  assert.equal(err.code, 'SERVICE_UNAVAILABLE');
+  assert.equal(err.isOperational, true);
+});
+
+test('resetMcpClientCache clears cached client state safely', async () => {
+  const { resetMcpClientCache } = await import('../services/chat/agent/mcpClient.js');
+  assert.doesNotThrow(() => resetMcpClientCache());
+});
+

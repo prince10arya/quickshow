@@ -9,6 +9,7 @@ export const validateChatMessage = validate([
     .isLength({ min: 1, max: 1000 })
     .withMessage('Message must be between 1 and 1000 characters.'),
   body('conversationId')
+    .optional({ nullable: true, checkFalsy: true })
     .isMongoId()
     .withMessage('Invalid conversation ID format.'),
   body('guestHistory')
