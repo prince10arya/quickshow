@@ -1,6 +1,5 @@
 import { reserveBudget, settleBudget } from '../budget/budget.service.js';
 import { createBookingConciergeAgent } from './agent.factory.js';
-import { observe } from '../observability/laminar.js';
 
 const extractJsonPayload = (raw) => {
   let current = raw;
@@ -34,43 +33,31 @@ const extractJsonPayload = (raw) => {
   return current;
 };
 
-export const streamAgentExecution = async ({ message, history = [], onEvent, sessionId, userId }) => {
-  return observe(
-    {
-      name: 'quickshow_booking_concierge',
-      sessionId: sessionId || undefined,
-      userId: userId || undefined,
-      input: { message, historyLength: (history || []).length },
-      metadata: {
-        provider: process.env.CHAT_PROVIDER || 'ollama',
-        model: process.env.CHAT_MODEL || 'gemma4:latest',
-      },
-    },
-    async () => {
-      const month = await reserveBudget();
-      const agent = await createBookingConciergeAgent();
+export const streamAgentExecution = async ({ message, history = [], onEvent }) => {
+  const month = await reserveBudget();
+  const agent = await createBookingConciergeAgent();
 
-      const formattedHistory = (history || []).map((msg) => ({
-        role: msg.role === 'assistant' ? 'assistant' : 'user',
-        content: msg.content,
-      }));
+  const formattedHistory = (history || []).map((msg) => ({
+    role: msg.role === 'assistant' ? 'assistant' : 'user',
+    content: msg.content,
+  }));
 
-      const inputMessages = [...formattedHistory, { role: 'user', content: message }];
+  const inputMessages = [...formattedHistory, { role: 'user', content: message }];
 
-      console.log(
-        `[Server:Agent] 🤖 Starting execution | msg: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}" | history: ${formattedHistory.length} msgs`
-      );
+  console.log(
+    `[Server:Agent] 🤖 Starting execution | msg: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}" | history: ${formattedHistory.length} msgs`
+  );
 
-      let accumulatedText = '';
-      let activeBookingSummary = null;
-      const generativeWidgets = [];
-      const capturedMessages = [];
+  let accumulatedText = '';
+  let activeBookingSummary = null;
+  const generativeWidgets = [];
+  const capturedMessages = [];
 
-      try {
-        const eventStream = await agent.streamEvents(
-          { messages: inputMessages },
-          { version: 'v2', recursionLimit: 8 }
-        );
+  try {
+    const eventStream = await agent.streamEvents(
+      { messages: inputMessages },
+      { version: 'v2', recursionLimit: 8 }
+    );
 
     for await (const event of eventStream) {
       if (event.event === 'on_chat_model_stream') {
@@ -165,5 +152,4 @@ export const streamAgentExecution = async ({ message, history = [], onEvent, ses
       console.error('[Server:Agent] Error settling budget:', err.message);
     });
   }
-  });
 };

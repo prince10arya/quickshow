@@ -75,13 +75,11 @@ export const streamChatMessage = async (req, res) => {
       }
     }
 
-    const activeSessionId = conversation?._id?.toString() || conversationId || undefined;
+    console.log(`[Server:Chat] ⚙️ Delegating to streamBookingAssistant (history: ${history.length} msgs)`);
 
     const result = await streamBookingAssistant({
       message: message.trim(),
       history,
-      sessionId: activeSessionId,
-      userId: userId || undefined,
       onEvent: (event) => {
         sendSse(event);
       },
@@ -169,14 +167,7 @@ export const sendChatMessage = async (req, res, next) => {
       }
     }
 
-    const activeSessionId = conversation?._id?.toString() || conversationId || undefined;
-
-    const response = await runBookingAssistant({
-      message: message.trim(),
-      history,
-      sessionId: activeSessionId,
-      userId: userId || undefined,
-    });
+    const response = await runBookingAssistant({ message: message.trim(), history });
     let returnedConversationId = conversation?._id?.toString() || conversationId || null;
 
     if (isDbConnected) {
