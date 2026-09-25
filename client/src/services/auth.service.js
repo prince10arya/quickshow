@@ -7,7 +7,7 @@ export const setAccessToken = (token) => { _accessToken = token; };
 export const getAccessToken = () => _accessToken;
 export const clearAccessToken = () => { _accessToken = null; };
 
-const api = axios.create({ baseURL: import.meta.env.VITE_BASE_URL, withCredentials: true });
+const api = axios.create({ baseURL: import.meta.env?.VITE_BASE_URL || '', withCredentials: true });
 
 export const authRegister = (name, email, password, image = '') =>
   api.post('/api/auth/register', { name, email, password, image });
