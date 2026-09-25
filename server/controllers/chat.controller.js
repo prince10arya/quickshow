@@ -98,7 +98,12 @@ export const streamChatMessage = async (req, res) => {
 
       conversation.messages.push(
         { role: 'user', content: message.trim() },
-        { role: 'assistant', content: result.message }
+        {
+          role: 'assistant',
+          content: result.message,
+          widgets: result.generativeWidgets || [],
+          bookingSummary: result.bookingSummary || null,
+        }
       );
       conversation.messages = conversation.messages.slice(-MAX_HISTORY);
       conversation.draft = result.bookingSummary || null;
@@ -180,7 +185,12 @@ export const sendChatMessage = async (req, res, next) => {
 
       conversation.messages.push(
         { role: 'user', content: message.trim() },
-        { role: 'assistant', content: response.message }
+        {
+          role: 'assistant',
+          content: response.message,
+          widgets: response.generativeWidgets || [],
+          bookingSummary: response.bookingSummary || null,
+        }
       );
       conversation.messages = conversation.messages.slice(-MAX_HISTORY);
       conversation.draft = response.bookingSummary;

@@ -5,6 +5,8 @@ import { movieDetailsTool } from './movieDetails.tool.js';
 import { searchShowsTool } from './searchShows.tool.js';
 import { showAvailabilityTool } from './showAvailability.tool.js';
 import { suggestSeatsTool } from './suggestSeats.tool.js';
+import { holdSeatsTool } from './holdSeats.tool.js';
+import { reservationStatusTool } from './reservationStatus.tool.js';
 
 export const ALL_CHAT_TOOLS = [
   listMoviesTool,
@@ -14,6 +16,8 @@ export const ALL_CHAT_TOOLS = [
   showAvailabilityTool,
   suggestSeatsTool,
   bookingSummaryTool,
+  holdSeatsTool,
+  reservationStatusTool,
 ];
 
 export {
@@ -25,4 +29,6 @@ export {
   searchShowsTool,
   showAvailabilityTool,
   suggestSeatsTool,
+  holdSeatsTool,
+  reservationStatusTool,
 };

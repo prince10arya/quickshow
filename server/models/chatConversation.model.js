@@ -4,6 +4,8 @@ const messageSchema = new mongoose.Schema(
   {
     role: { type: String, enum: ['user', 'assistant'], required: true },
     content: { type: String, required: false, maxlength: 4000 },
+    widgets: { type: [mongoose.Schema.Types.Mixed], default: [] },
+    bookingSummary: { type: mongoose.Schema.Types.Mixed, default: null },
   },
   { _id: false, timestamps: true }
 );
