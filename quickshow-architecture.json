@@ -1,0 +1,331 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "QuickShow — Production Modular Architecture",
+    "subtitle": "High-Concurrency Ticketing, Redis Seat Holds, Idempotency & Agentic Safeguards",
+    "output": "architecture.html"
+  },
+  "components": [
+    {
+      "id": "clerk_auth",
+      "type": "security",
+      "label": "Auth & Identity",
+      "sublabel": "JWT / Bcrypt / Cookies",
+      "tag": "Bearer Auth",
+      "pos": [70, 60],
+      "size": [150, 60]
+    },
+    {
+      "id": "browser_client",
+      "type": "frontend",
+      "label": "Web Client",
+      "sublabel": "React 19 + Vite :5173",
+      "tag": "SSE + Stepper",
+      "pos": [70, 200],
+      "size": [150, 64]
+    },
+    {
+      "id": "imdb_api",
+      "type": "external",
+      "label": "IMDb / RapidAPI",
+      "sublabel": "Movie Catalog Feed",
+      "tag": "REST Feed",
+      "pos": [70, 520],
+      "size": [150, 60]
+    },
+    {
+      "id": "api_gateway",
+      "type": "backend",
+      "label": "API Gateway",
+      "sublabel": "Express 5 :3000",
+      "tag": "Idempotency MW",
+      "pos": [320, 200],
+      "size": [160, 64]
+    },
+    {
+      "id": "chat_agent",
+      "type": "backend",
+      "label": "AI Concierge",
+      "sublabel": "LangChain Orchestrator",
+      "tag": "Budget Guard",
+      "pos": [320, 360],
+      "size": [160, 64]
+    },
+    {
+      "id": "inngest_jobs",
+      "type": "backend",
+      "label": "Inngest Worker",
+      "sublabel": "Async Sync & Reapers",
+      "tag": "Event Jobs",
+      "pos": [320, 520],
+      "size": [160, 60]
+    },
+    {
+      "id": "laminar_obs",
+      "type": "cloud",
+      "label": "Laminar Tracing",
+      "sublabel": "Spans, Costs & Evals",
+      "tag": "@lmnr-ai/lmnr",
+      "pos": [580, 60],
+      "size": [160, 60]
+    },
+    {
+      "id": "llm_engine",
+      "type": "cloud",
+      "label": "LLM Provider",
+      "sublabel": "Groq / Ollama / OpenAI",
+      "tag": "gemma4 / llama3",
+      "pos": [580, 200],
+      "size": [160, 64]
+    },
+    {
+      "id": "mcp_tools",
+      "type": "backend",
+      "label": "MCP Cinema Tools",
+      "sublabel": "@modelcontextprotocol",
+      "tag": "SSE :3002",
+      "pos": [580, 360],
+      "size": [160, 64]
+    },
+    {
+      "id": "inventory_svc",
+      "type": "backend",
+      "label": "Inventory & Seats",
+      "sublabel": "Seat State Machine",
+      "tag": "Contiguous Logic",
+      "pos": [580, 520],
+      "size": [160, 60]
+    },
+    {
+      "id": "stripe_gw",
+      "type": "external",
+      "label": "Stripe Gateway",
+      "sublabel": "Checkout & Webhooks",
+      "tag": "Idempotent Hook",
+      "pos": [840, 60],
+      "size": [160, 60]
+    },
+    {
+      "id": "reservation_svc",
+      "type": "backend",
+      "label": "Reservation Domain",
+      "sublabel": "Hold Lifecycle & TTL",
+      "tag": "5-Min Expiry",
+      "pos": [840, 200],
+      "size": [160, 64]
+    },
+    {
+      "id": "redis_store",
+      "type": "database",
+      "label": "Redis Fast-Lock",
+      "sublabel": "Atomic Seat Holds",
+      "tag": "Lua Script TTL",
+      "pos": [840, 360],
+      "size": [160, 64]
+    },
+    {
+      "id": "mongodb",
+      "type": "database",
+      "label": "Durable Database",
+      "sublabel": "MongoDB / Postgres",
+      "tag": "Source of Truth",
+      "pos": [840, 520],
+      "size": [160, 64]
+    },
+    {
+      "id": "booking_svc",
+      "type": "backend",
+      "label": "Booking Domain",
+      "sublabel": "Booking FSM & Orders",
+      "tag": "Order FSM",
+      "pos": [1080, 360],
+      "size": [150, 64]
+    },
+    {
+      "id": "event_bus",
+      "type": "messagebus",
+      "label": "Domain EventBus",
+      "sublabel": "In-Memory Pub/Sub",
+      "tag": "Async Events",
+      "pos": [1080, 520],
+      "size": [150, 60]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "QuickShow Gateway & Orchestrator (:3000)",
+      "wraps": ["api_gateway", "chat_agent", "inngest_jobs"]
+    },
+    {
+      "kind": "region",
+      "label": "AI Cloud & Telemetry",
+      "wraps": ["laminar_obs", "llm_engine"]
+    },
+    {
+      "kind": "region",
+      "label": "Agentic MCP Service & Tools (:3002)",
+      "wraps": ["mcp_tools", "inventory_svc"]
+    },
+    {
+      "kind": "security-group",
+      "label": "Durable & Ephemeral Storage Cluster",
+      "wraps": ["redis_store", "mongodb"]
+    },
+    {
+      "kind": "region",
+      "label": "Domain Booking & Event Infrastructure",
+      "wraps": ["booking_svc", "event_bus"]
+    }
+  ],
+  "connections": [
+    {
+      "from": "clerk_auth",
+      "to": "browser_client",
+      "label": "OAuth & JWT",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 45
+    },
+    {
+      "from": "browser_client",
+      "to": "api_gateway",
+      "label": "REST & SSE Stream",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "stripe_gw",
+      "to": "api_gateway",
+      "label": "Stripe Webhooks",
+      "variant": "security",
+      "fromSide": "left",
+      "toSide": "top"
+    },
+    {
+      "from": "api_gateway",
+      "to": "chat_agent",
+      "label": "User Turn",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 52
+    },
+    {
+      "from": "chat_agent",
+      "to": "llm_engine",
+      "label": "Inference",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "llm_engine",
+      "to": "laminar_obs",
+      "label": "Spans & Evals",
+      "variant": "dashed",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "labelDx": 40
+    },
+    {
+      "from": "chat_agent",
+      "to": "mcp_tools",
+      "label": "MCP SSE :3002",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "mcp_tools",
+      "to": "inventory_svc",
+      "label": "Execute Tool",
+      "variant": "default",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 52
+    },
+    {
+      "from": "inventory_svc",
+      "to": "mongodb",
+      "label": "Seat Query",
+      "variant": "default",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "from": "reservation_svc",
+      "to": "redis_store",
+      "label": "Atomic Hold",
+      "variant": "emphasis",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 52
+    },
+    {
+      "from": "reservation_svc",
+      "to": "booking_svc",
+      "label": "Checkout",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "top"
+    },
+    {
+      "from": "booking_svc",
+      "to": "mongodb",
+      "label": "Durable Commit",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "right"
+    },
+    {
+      "from": "booking_svc",
+      "to": "event_bus",
+      "label": "BookingConfirmed",
+      "variant": "default",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "labelDy": 52
+    },
+    {
+      "from": "inngest_jobs",
+      "to": "imdb_api",
+      "label": "Sync Catalog",
+      "variant": "dashed",
+      "fromSide": "left",
+      "toSide": "right"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Frontend & Reactive Stepper",
+      "items": [
+        "React 19 SPA with Tailwind CSS v4, Framer Motion & Vite (:5173)",
+        "Real-time SSE stream reader dispatching tokens, thinking steps & widgets",
+        "Deterministic booking stepper powered by real backend reservation state"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "High-Contention Seat Architecture",
+      "items": [
+        "Atomic multi-seat holds with Lua script & 5-minute TTL (100% race-free)",
+        "Dedicated Reservation Domain isolating temporary holds from confirmed orders",
+        "End-to-end Idempotency Engine shielding client retries and Stripe webhooks"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Event-Driven & Agent Safeguards",
+      "items": [
+        "Decoupled Domain EventBus (ReservationHeld, BookingConfirmed, Expired)",
+        "Agent boundary protection: LLM never directly touches database records",
+        "Laminar observability SDK (@lmnr-ai/lmnr) tracing spans, latencies & budgets"
+      ]
+    }
+  ]
+}
