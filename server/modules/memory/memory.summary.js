@@ -88,12 +88,20 @@ export class ConversationSummaryService {
 
     const lastMessage = messagesToSummarize[messagesToSummarize.length - 1];
     const summaryText = points.length > 0 ? points.join(' ') : 'User explored movie listings and showtimes.';
+    const start = Date.now();
 
-    return this.summaryRepo.upsertSummary(
+    const updatedDoc = await this.summaryRepo.upsertSummary(
       conversationId,
       summaryText,
       lastMessage._id.toString()
     );
+
+    const summaryGenerationMs = Date.now() - start;
+    console.log(
+      `[Server:Summary] 📄 summary_updated in ${summaryGenerationMs}ms | conv: ${conversationId} | version: ${updatedDoc.version} | chars: ${summaryText.length}`
+    );
+
+    return updatedDoc;
   }
 }
 

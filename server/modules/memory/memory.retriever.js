@@ -24,15 +24,24 @@ export class MemoryRetriever {
   async retrieve({ userId, query, intent = INTENT_TYPES.GENERAL, bookingState = null, limit = 5 }) {
     if (!userId) return [];
 
+    const start = Date.now();
+    const queryPreview = query ? `"${query.slice(0, 40)}${query.length > 40 ? '...' : ''}"` : 'empty';
+
+    console.log(
+      `[Server:Memory] 🔍 memory_retrieval_started | user: user:${userId.slice(-6)} | intent: ${intent} | query: ${queryPreview}`
+    );
+
     // For pure transactional booking actions ("book 2 seats", "seat G10"), skip semantic memory
     if (intent === INTENT_TYPES.BOOKING_ACTION) {
+      console.log(`[Server:Memory] 🧠 memory_retrieval_completed in ${Date.now() - start}ms | skipped (intent: booking_action)`);
       return [];
     }
 
     try {
-      // If intent is recommendation or general, retrieve preferences and facts
+      let results = [];
+
+      // If intent is recommendation, prioritize keyword/semantic match
       if (intent === INTENT_TYPES.RECOMMENDATION) {
-        // Extract keywords from query or fetch user preferences/facts
         const keywords = query
           .toLowerCase()
           .replace(/[^\w\s]/g, '')
@@ -40,17 +49,24 @@ export class MemoryRetriever {
           .filter((w) => w.length > 3);
 
         if (keywords.length > 0) {
-          const matched = await this.repo.searchByKeyword(userId, keywords[0], limit);
-          if (matched.length > 0) return matched;
+          results = await this.repo.searchByKeyword(userId, keywords[0], limit);
         }
 
-        return this.repo.findByUser(userId, { limit });
+        if (results.length === 0) {
+          results = await this.repo.findByUser(userId, { limit });
+        }
+      } else {
+        // Default retrieval for general queries
+        results = await this.repo.findByUser(userId, { limit });
       }
 
-      // Default retrieval for general queries
-      return this.repo.findByUser(userId, { limit });
+      const memoryRetrievalMs = Date.now() - start;
+      console.log(
+        `[Server:Memory] 🧠 memory_retrieval_completed in ${memoryRetrievalMs}ms | retrieved: ${results.length} memories`
+      );
+      return results;
     } catch (err) {
-      console.warn(`[MemoryRetriever] ⚠️ Memory retrieval failed: ${err.message}. Continuing without memories.`);
+      console.warn(`[Server:Memory] ⚠️ memory_retrieval_failed: ${err.message}. Continuing without memories.`);
       return [];
     }
   }

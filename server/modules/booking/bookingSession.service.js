@@ -51,7 +51,20 @@ export class BookingSessionService {
       assertSessionTransition(current.status, sanitizedUpdates.status, sessionId);
     }
 
-    return this.repo.updateWithVersion(sessionId, versionToUse, sanitizedUpdates);
+    try {
+      const updated = await this.repo.updateWithVersion(sessionId, versionToUse, sanitizedUpdates);
+      console.log(
+        `[Server:Booking] 🔄 booking_state_updated | session: ${sessionId} | status: ${updated.status} | version: ${updated.version}`
+      );
+      return updated;
+    } catch (updateErr) {
+      if (updateErr.code === 'CONFLICT' || updateErr.statusCode === 409) {
+        console.warn(
+          `[Server:Booking] ⚠️ booking_state_conflict | session: ${sessionId} | expectedVersion: ${versionToUse}`
+        );
+      }
+      throw updateErr;
+    }
   }
 
   /**

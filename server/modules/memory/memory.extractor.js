@@ -50,6 +50,10 @@ export class MemoryExtractor {
   async extractAndPersist({ userId, conversationId, messageId, text }) {
     if (!userId || !text || this.isNoise(text)) return [];
 
+    console.log(
+      `[Server:Memory] 📝 memory_extraction_started | user: user:${userId.slice(-6)} | text: "${text.slice(0, 40)}${text.length > 40 ? '...' : ''}"`
+    );
+
     const lower = text.toLowerCase();
     const extracted = [];
 
@@ -77,6 +81,7 @@ export class MemoryExtractor {
         confidence: 1.0,
         importance: 0.9,
       });
+      console.log(`[Server:Memory] ✨ memory_created | user: user:${userId.slice(-6)} | key: ${pref.key} | val: ${pref.value} (${pref.source})`);
       extracted.push(pref);
     }
 
@@ -104,6 +109,7 @@ export class MemoryExtractor {
         confidence: 1.0,
         importance: 0.8,
       });
+      console.log(`[Server:Memory] ✨ memory_created | user: user:${userId.slice(-6)} | key: ${pref.key} | val: ${pref.value} (${pref.source})`);
       extracted.push(pref);
     }
 
@@ -131,6 +137,7 @@ export class MemoryExtractor {
         confidence: 1.0,
         importance: 0.7,
       });
+      console.log(`[Server:Memory] ✨ memory_created | user: user:${userId.slice(-6)} | key: ${pref.key} | val: ${pref.value} (${pref.source})`);
       extracted.push(pref);
     }
 

@@ -94,6 +94,13 @@ export class ContextBuilder {
    * @returns {Promise<import('./context.types.js').AgentContext>}
    */
   async build({ userId, conversationId, userMessage }) {
+    const start = Date.now();
+    const intent = this.classifyIntent(userMessage);
+
+    console.log(
+      `[Server:Context] ⏳ context_build_started | conv: ${conversationId || 'none'} | user: ${userId ? `user:${userId.slice(-6)}` : 'guest'} | intent: ${intent}`
+    );
+
     // 1. Load primary conversational context in parallel
     const [
       recentMessages,
@@ -107,10 +114,7 @@ export class ContextBuilder {
       userId ? this.preferenceRepo.getUserPreferences(userId) : Promise.resolve([]),
     ]);
 
-    // 2. Classify intent to determine targeted memory lookups
-    const intent = this.classifyIntent(userMessage);
-
-    // 3. Load long-term context concurrently based on intent
+    // 2. Load long-term context concurrently based on intent
     const [relevantMemories, recentBookings] = await Promise.all([
       userId
         ? this.memoryRetriever.retrieve({
@@ -123,6 +127,12 @@ export class ContextBuilder {
       this.getRelevantBookings({ userId, intent }),
     ]);
 
+    const contextBuilderMs = Date.now() - start;
+
+    console.log(
+      `[Server:Context] ✅ context_build_completed in ${contextBuilderMs}ms | intent: ${intent} | msgs: ${recentMessages.length} | summary: ${summaryDoc ? 'yes' : 'none'} | booking: ${bookingState?.status || 'none'} | prefs: ${userPreferences.length} | memories: ${relevantMemories.length} | bookings: ${recentBookings.length}`
+    );
+
     return {
       recentMessages,
       conversationSummary: summaryDoc?.summary || null,
@@ -130,6 +140,7 @@ export class ContextBuilder {
       userPreferences,
       relevantMemories,
       recentBookings,
+      contextBuilderMs,
     };
   }
 }
