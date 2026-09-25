@@ -194,6 +194,21 @@ Content-Type: {{contentType}}
 ### 5.3 Dummy Payment Confirm (Webhook / Local Redirect)
 GET {{baseUrl}}/api/bookings/confirm-dummy/sampleBookingId123
 
+### 5.4 Hold Seats with Idempotency Key (Requires Auth)
+POST {{baseUrl}}/api/reservations/hold
+Authorization: Bearer {{authToken}}
+Content-Type: {{contentType}}
+Idempotency-Key: req_hold_test_101
+
+{
+  "showId": "{{sampleShowId}}",
+  "seatIds": ["G12", "G13"]
+}
+
+### 5.5 Get Reservation Status (Requires Auth)
+GET {{baseUrl}}/api/reservations/sampleReservationId123
+Authorization: Bearer {{authToken}}
+
 ###############################################################################
 # 6. USER PROFILE & FAVORITES
 ###############################################################################

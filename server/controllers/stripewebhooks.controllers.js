@@ -1,78 +1,78 @@
 import stripe from 'stripe';
-import Booking from '../models/booking.model.js';
-import { releaseSeats } from './booking.controller.js';
+import { bookingService } from '../modules/booking/booking.service.js';
+import { idempotencyService } from '../modules/shared/idempotency/idempotency.service.js';
 
 export const stripeWebHooks = async (req, res) => {
-  const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
+  const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+  if (!stripeSecretKey || !webhookSecret) {
+    console.warn('[webhook] Stripe credentials missing in environment.');
+    return res.status(200).json({ received: true, simulated: true });
+  }
+
+  const stripeInstance = new stripe(stripeSecretKey);
   const sig = req.headers['stripe-signature'];
 
   let event;
   try {
-    event = stripeInstance.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-    console.log(event, ": event")
+    event = stripeInstance.webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (error) {
     return res.status(400).send(`Webhook Error: ${error.message}`);
   }
 
+  // ── Idempotency Check on Event ID ──────────────────────────────────────────
+  const eventId = event.id;
+  const acquisition = idempotencyService.acquire(eventId, event.type);
+  if (acquisition.status === 'CACHED' || acquisition.status === 'IN_PROGRESS') {
+    console.log(`[webhook] Event ${eventId} (${event.type}) already processed or in-progress. Deduplicated.`);
+    return res.status(200).json({ received: true, deduplicated: true });
+  }
+
   try {
     switch (event.type) {
-      // ── Fulfillment: session completed (payment_status === 'paid') ─────────
-      // Best practice: use checkout.session.completed, NOT payment_intent.succeeded.
-      // metadata is directly on the session object — no extra API call needed.
       case 'checkout.session.completed': {
         const session = event.data.object;
-
-        // Guard: async payment methods (e.g. bank transfer) complete the session
-        // before money arrives. Only fulfil when payment is actually captured.
         if (session.payment_status !== 'paid') {
-          console.log(`[webhook] checkout.session.completed but payment_status=${session.payment_status} — waiting for async_payment_succeeded`);
+          console.log(`[webhook] checkout.session.completed with payment_status=${session.payment_status} — awaiting async confirmation.`);
           break;
         }
 
         const { bookingId } = session.metadata ?? {};
-        console.log(bookingId, 'booking id')
         if (!bookingId) {
-          console.warn('[webhook] checkout.session.completed: bookingId missing in metadata', session.id);
+          console.warn('[webhook] checkout.session.completed missing bookingId in metadata:', session.id);
           return res.status(400).send('Booking ID not found in metadata.');
         }
 
-        await Booking.findByIdAndUpdate(bookingId, {
-          isPaid: true,
-          paymentLink: '',
+        await bookingService.confirmBooking(bookingId, {
+          sessionId: session.id,
+          eventId,
+          paymentStatus: session.payment_status,
         });
-        console.log(`[webhook] Booking ${bookingId} marked paid.`);
+        console.log(`[webhook] Booking ${bookingId} confirmed via Stripe webhook.`);
         break;
       }
 
-      // ── Async payment methods: money arrives after session completes ───────
       case 'checkout.session.async_payment_succeeded': {
         const session = event.data.object;
         const { bookingId } = session.metadata ?? {};
         if (!bookingId) break;
 
-        await Booking.findByIdAndUpdate(bookingId, {
-          isPaid: true,
-          paymentLink: '',
+        await bookingService.confirmBooking(bookingId, {
+          sessionId: session.id,
+          eventId,
+          asyncPayment: true,
         });
-        console.log(`[webhook] Async payment succeeded. Booking ${bookingId} marked paid.`);
+        console.log(`[webhook] Async payment succeeded. Booking ${bookingId} confirmed.`);
         break;
       }
 
-      // ── Session expired → release held seats ──────────────────────────────
       case 'checkout.session.expired': {
         const session = event.data.object;
         const { bookingId } = session.metadata ?? {};
+        if (!bookingId) break;
 
-        if (!bookingId) {
-          console.warn('[webhook] checkout.session.expired: bookingId missing', session.id);
-          break;
-        }
-
-        await releaseSeats(bookingId);
+        await bookingService.failBooking(bookingId, 'STRIPE_SESSION_EXPIRED');
         console.log(`[webhook] Seats released for expired session. bookingId: ${bookingId}`);
         break;
       }
@@ -81,9 +81,11 @@ export const stripeWebHooks = async (req, res) => {
         console.log('[webhook] Unhandled event type:', event.type);
     }
 
-    res.status(200).json({ received: true });
+    idempotencyService.complete(eventId, 200, { received: true });
+    return res.status(200).json({ received: true });
   } catch (error) {
     console.error('[webhook] Processing error:', error.message);
-    res.status(500).send('Internal server error');
+    idempotencyService.abort(eventId);
+    return res.status(500).send('Internal server error');
   }
 };
