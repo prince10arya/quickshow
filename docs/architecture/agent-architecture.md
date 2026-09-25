@@ -83,3 +83,11 @@ export interface BookingContext {
 ```
 
 The agent emits structured events that drive the frontend stepper and UI cards in real-time.
+
+---
+
+## 4. Production Agent Memory Architecture
+
+For full details on the 7-collection tiered memory architecture, optimistic concurrency, intent-aware context building, and semantic memory vector search, see:
+* Detailed Specification: [`agent-memory-architecture.md`](file:///c:/DEVELOPER/Personal/personal-projects/quickshow/docs/architecture/agent-memory-architecture.md)
+* Architecture Decision Record: [`decisions/ADR-007-agent-memory-architecture.md`](file:///c:/DEVELOPER/Personal/personal-projects/quickshow/docs/architecture/decisions/ADR-007-agent-memory-architecture.md)
