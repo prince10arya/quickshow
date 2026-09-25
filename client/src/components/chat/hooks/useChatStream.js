@@ -1,24 +1,51 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { useAppContext } from '../../../context/AppContext';
 import { agentEventReducer, INITIAL_AGENT_EVENTS } from '../agent/eventReducer.js';
 import { selectActivities, selectCurrentActivity, selectAgentStatus, selectThinkingSteps } from '../agent/activityUtils.js';
 import { selectCurrentBookingStep, selectCompletedSteps } from '../agent/bookingProgress.js';
-
-const GUEST_HISTORY_KEY = 'quickshow-guest-chat-history';
-
-const readGuestHistory = () => {
-  try {
-    const value = JSON.parse(sessionStorage.getItem(GUEST_HISTORY_KEY) || '[]');
-    return Array.isArray(value) ? value : [];
-  } catch {
-    return [];
-  }
-};
+import {
+  selectChatMessages,
+  selectChatConversationId,
+  setChatMessages,
+  setChatConversationId,
+  resetChat,
+} from '../../../store/slices/chatSlice.js';
 
 export const useChatStream = () => {
   const { axios, getToken, user } = useAppContext();
-  const [messages, setMessages] = useState(readGuestHistory);
-  const [conversationId, setConversationId] = useState(null);
+  const dispatch = useDispatch();
+
+  const messages = useSelector(selectChatMessages);
+  const conversationId = useSelector(selectChatConversationId);
+
+  const messagesRef = useRef(messages);
+  useEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+
+  const conversationIdRef = useRef(conversationId);
+  useEffect(() => {
+    conversationIdRef.current = conversationId;
+  }, [conversationId]);
+
+  const setMessages = useCallback(
+    (updater) => {
+      const nextMessages = typeof updater === 'function' ? updater(messagesRef.current) : updater;
+      messagesRef.current = nextMessages;
+      dispatch(setChatMessages(nextMessages));
+    },
+    [dispatch]
+  );
+
+  const setConversationId = useCallback(
+    (id) => {
+      conversationIdRef.current = id;
+      dispatch(setChatConversationId(id));
+    },
+    [dispatch]
+  );
+
   const [loading, setLoading] = useState(false);
   const [activeTool, setActiveTool] = useState(null);
   const [error, setError] = useState('');
@@ -35,28 +62,16 @@ export const useChatStream = () => {
   const currentStep = useMemo(() => selectCurrentBookingStep(agentEvents, messages), [agentEvents, messages]);
   const completedSteps = useMemo(() => selectCompletedSteps(agentEvents, messages), [agentEvents, messages]);
 
-  // Sync guest history to session storage
-  useEffect(() => {
-    if (user) return;
-    const cleanToStore = messages
-      .slice(-14)
-      .map(({ role, content, bookingSummary, widgets }) => ({
-        role,
-        content,
-        bookingSummary,
-        widgets,
-      }));
-    sessionStorage.setItem(GUEST_HISTORY_KEY, JSON.stringify(cleanToStore));
-  }, [messages, user]);
-
-  // Load existing conversation on mount (or create active conversation ID)
+  // Load existing conversation on mount or when user changes
   useEffect(() => {
     let isMounted = true;
     const loadConversation = async () => {
       try {
         const token = await getToken();
+        const activeConvId = conversationIdRef.current;
         const { data } = await axios.get('/api/chat/conversation', {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          params: activeConvId ? { conversationId: activeConvId } : undefined,
         });
         if (!isMounted) return;
 
@@ -64,15 +79,19 @@ export const useChatStream = () => {
           setConversationId(data.conversation._id);
           const restored = data.conversation.messages || [];
           if (data.conversation.draft && restored.at(-1)?.role === 'assistant') {
-            restored[restored.length - 1] = {
-              ...restored.at(-1),
-              bookingSummary: data.conversation.draft,
-            };
+            const lastIndex = restored.length - 1;
+            const lastMsg = restored[lastIndex];
+            if (!lastMsg.bookingSummary && !lastMsg.widgets?.some((w) => w.type === 'booking_summary')) {
+              restored[lastIndex] = {
+                ...lastMsg,
+                bookingSummary: data.conversation.draft,
+              };
+            }
           }
           if (restored.length > 0) {
             setMessages(restored);
           }
-        } else {
+        } else if (!activeConvId) {
           // Initialize a new conversation ID for this session
           const newRes = await axios.post(
             '/api/chat/new',
@@ -92,7 +111,7 @@ export const useChatStream = () => {
     return () => {
       isMounted = false;
     };
-  }, [axios, getToken, user]);
+  }, [axios, getToken, setConversationId, setMessages, user]);
 
   const abortStream = useCallback(() => {
     if (abortControllerRef.current) {
@@ -117,7 +136,7 @@ export const useChatStream = () => {
       setActiveTool(null);
 
       const userMsg = { role: 'user', content };
-      const currentHistory = [...messages, userMsg];
+      const currentHistory = [...messagesRef.current, userMsg];
 
       // Prepare empty assistant placeholder message for streaming
       const assistantPlaceholder = {
@@ -137,9 +156,10 @@ export const useChatStream = () => {
 
       try {
         const token = await getToken();
+        const activeConvId = conversationIdRef.current;
         console.log('[Client:Chat] 🚀 Dispatching message:', {
           message: content.slice(0, 80),
-          conversationId,
+          conversationId: activeConvId,
           isGuest: !token,
         });
 
@@ -152,10 +172,10 @@ export const useChatStream = () => {
 
         const payload = {
           message: content,
-          ...(conversationId ? { conversationId } : {}),
+          ...(activeConvId ? { conversationId: activeConvId } : {}),
           guestHistory: token
             ? undefined
-            : messages
+            : messagesRef.current
                 .slice(-14)
                 .map(({ role, content: text }) => ({ role, content: text })),
         };
@@ -181,6 +201,14 @@ export const useChatStream = () => {
         let tokenCount = 0;
         const accumulatedWidgets = [];
         let finalBookingSummary = null;
+
+        const pushWidgetDeduplicated = (w) => {
+          if (!w) return;
+          const key = `${w.type}-${JSON.stringify(w)}`;
+          if (!accumulatedWidgets.some((existing) => `${existing.type}-${JSON.stringify(existing)}` === key)) {
+            accumulatedWidgets.push(w);
+          }
+        };
 
         while (true) {
           const { done, value } = await reader.read();
@@ -240,7 +268,7 @@ export const useChatStream = () => {
                 });
 
                 if (event.widget) {
-                  accumulatedWidgets.push(event.widget);
+                  pushWidgetDeduplicated(event.widget);
                   if (event.widget.type === 'booking_summary') {
                     finalBookingSummary = event.widget.bookingSummary;
                   }
@@ -260,7 +288,7 @@ export const useChatStream = () => {
               } else if (event.type === 'ui') {
                 console.log(`[Client:Chat] 🎨 ui event received: ${event.widget?.type}`);
                 if (event.widget) {
-                  accumulatedWidgets.push(event.widget);
+                  pushWidgetDeduplicated(event.widget);
                   if (event.widget.type === 'booking_summary') {
                     finalBookingSummary = event.widget.bookingSummary;
                   }
@@ -290,6 +318,12 @@ export const useChatStream = () => {
                 }
                 if (event.bookingSummary) finalBookingSummary = event.bookingSummary;
 
+                if (Array.isArray(event.generativeWidgets)) {
+                  for (const gw of event.generativeWidgets) {
+                    pushWidgetDeduplicated(gw);
+                  }
+                }
+
                 setMessages((prev) => {
                   const updated = [...prev];
                   const lastIndex = updated.length - 1;
@@ -298,7 +332,7 @@ export const useChatStream = () => {
                       ...updated[lastIndex],
                       content: streamedContent || event.message || updated[lastIndex].content,
                       bookingSummary: finalBookingSummary,
-                      widgets: accumulatedWidgets.length ? accumulatedWidgets : event.generativeWidgets || [],
+                      widgets: [...accumulatedWidgets],
                       isStreaming: false,
                     };
                   }
@@ -361,7 +395,7 @@ export const useChatStream = () => {
         abortControllerRef.current = null;
       }
     },
-    [conversationId, getToken, loading, messages]
+    [getToken, loading, setConversationId, setMessages]
   );
 
   const startNewChat = useCallback(async () => {
@@ -377,15 +411,14 @@ export const useChatStream = () => {
         {},
         token ? { headers: { Authorization: `Bearer ${token}` } } : undefined
       );
-      sessionStorage.removeItem(GUEST_HISTORY_KEY);
-      setMessages([]);
+      dispatch(resetChat());
       if (data?.conversationId) {
         setConversationId(data.conversationId);
       }
     } catch {
       setError('Could not start a new chat.');
     }
-  }, [abortStream, axios, getToken]);
+  }, [abortStream, axios, dispatch, getToken, setConversationId]);
 
   return {
     messages,

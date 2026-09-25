@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, useReducedMotion } from 'framer-motion';
 import { ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import ActivityItem from './ActivityItem.jsx';
 

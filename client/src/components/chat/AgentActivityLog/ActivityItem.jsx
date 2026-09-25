@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 import { AlertCircle, Check, ChevronDown, ChevronRight, Clock, Loader2 } from 'lucide-react';
 import { getToolMetadata } from '../agent/toolMetadata.js';
 

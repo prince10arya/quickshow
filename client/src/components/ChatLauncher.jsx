@@ -5,6 +5,16 @@ const BookingAssistant = lazy(() => import('./chat/BookingAssistant'));
 
 const ChatLauncher = () => {
   const [open, setOpen] = useState(false);
+  const [hasOpened, setHasOpened] = useState(false);
+
+  const handleOpen = () => {
+    setHasOpened(true);
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
 
   return (
     <>
@@ -12,7 +22,7 @@ const ChatLauncher = () => {
         type="button"
         aria-label="Open AI Movie Concierge"
         aria-expanded={open}
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
         className="group fixed bottom-5 right-5 z-40 flex h-14 items-center gap-2.5 rounded-full border border-rose-300/30 bg-gradient-to-r from-primary to-rose-600 px-5 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(248,69,101,0.45)] transition duration-200 hover:scale-105 hover:shadow-[0_14px_34px_rgba(248,69,101,0.55)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary active:scale-95"
       >
         <span className="relative flex h-5 w-5 items-center justify-center">
@@ -22,10 +32,12 @@ const ChatLauncher = () => {
         <span className="font-semibold tracking-wide">QuickShow AI</span>
       </button>
 
-      {open && (
-        <Suspense fallback={null}>
-          <BookingAssistant onClose={() => setOpen(false)} />
-        </Suspense>
+      {hasOpened && (
+        <div className={open ? 'contents' : 'hidden'} aria-hidden={!open}>
+          <Suspense fallback={null}>
+            <BookingAssistant onClose={handleClose} />
+          </Suspense>
+        </div>
       )}
     </>
   );
