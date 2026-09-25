@@ -45,7 +45,7 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
   const inputMessages = [...formattedHistory, { role: 'user', content: message }];
 
   console.log(
-    `[Server:Agent] 🤖 Starting execution | msg: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}" | history: ${formattedHistory.length} msgs`
+    `[Server:Agent] 🤖 Starting execution with [${agent.provider?.toUpperCase() || 'UNKNOWN'}] model: "${agent.modelName}" | msg: "${message.slice(0, 50)}${message.length > 50 ? '...' : ''}" | history: ${formattedHistory.length} msgs`
   );
 
   let accumulatedText = '';
@@ -60,7 +60,11 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
     );
 
     for await (const event of eventStream) {
-      if (event.event === 'on_chat_model_stream') {
+      if (event.event === 'on_chat_model_start') {
+        console.log(
+          `[Server:Agent] 🧠 Invoking chat model: [${agent.provider?.toUpperCase() || 'UNKNOWN'}] "${agent.modelName}"`
+        );
+      } else if (event.event === 'on_chat_model_stream') {
         const chunk = event.data?.chunk;
         const text =
           typeof chunk?.content === 'string'

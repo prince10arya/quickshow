@@ -46,4 +46,26 @@ test('CHAT_CONFIG configures default model', () => {
   assert.equal(CHAT_CONFIG.DEFAULT_MODEL, 'gemma4:latest');
 });
 
+test('createBookingConciergeAgent configures Ollama when useOllama is true', async () => {
+  const { createBookingConciergeAgent } = await import('../services/chat/agent/agent.factory.js');
+  const agent = await createBookingConciergeAgent({ useOllama: true, modelName: 'gemma4:latest' });
+  assert.equal(agent.provider, 'ollama');
+  assert.equal(agent.modelName, 'gemma4:latest');
+});
+
+test('createBookingConciergeAgent configures NVIDIA model when useOllama is false', async () => {
+  const { createBookingConciergeAgent } = await import('../services/chat/agent/agent.factory.js');
+  const { closeMcpClient } = await import('../services/chat/agent/mcpClient.js');
+  const origKey = process.env.NVIDIA_API_KEY;
+  process.env.NVIDIA_API_KEY = process.env.NVIDIA_API_KEY || 'test-key';
+  try {
+    const agent = await createBookingConciergeAgent({ useOllama: false });
+    assert.equal(agent.provider, 'nvidia');
+    assert.ok(agent.modelName.includes('deepseek') || agent.modelName === 'deepseek-ai/deepseek-v4.1-flash');
+  } finally {
+    process.env.NVIDIA_API_KEY = origKey;
+    await closeMcpClient();
+  }
+});
+
 
