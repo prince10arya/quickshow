@@ -18,16 +18,38 @@ export {
   settleBudget,
 };
 
-export const streamBookingAssistant = async ({ message, history = [], onEvent }) => {
-  return streamAgentExecution({ message, history, onEvent });
+export const streamBookingAssistant = async ({
+  message,
+  history = [],
+  onEvent,
+  userId,
+  conversationId,
+  context,
+}) => {
+  return streamAgentExecution({
+    message,
+    history,
+    onEvent,
+    userId,
+    conversationId,
+    context,
+  });
 };
 
-export const runBookingAssistant = async ({ message, history = [] }) => {
-  let finalResult = null;
+export const runBookingAssistant = async ({
+  message,
+  history = [],
+  userId,
+  conversationId,
+  context,
+}) => {
   const result = await streamAgentExecution({
     message,
     history,
     onEvent: () => {},
+    userId,
+    conversationId,
+    context,
   });
 
   return {
@@ -35,6 +57,7 @@ export const runBookingAssistant = async ({ message, history = [] }) => {
     status: result.bookingSummary ? 'ready' : 'collecting',
     bookingSummary: result.bookingSummary,
     generativeWidgets: result.generativeWidgets,
+    bookingState: result.bookingState,
   };
 };
 

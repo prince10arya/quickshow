@@ -1,5 +1,10 @@
 import { reserveBudget, settleBudget } from '../budget/budget.service.js';
 import { createBookingConciergeAgent } from './agent.factory.js';
+import { buildSystemPrompt } from '../prompts/systemPrompt.js';
+import { contextSerializer } from '../../../modules/context/context.serializer.js';
+import { bookingSessionService } from '../../../modules/booking/bookingSession.service.js';
+import { agentEventRepository } from '../../../repositories/agentEvent.repository.js';
+import { AGENT_EVENT_STATUS, AGENT_EVENT_TYPE } from '../../../models/agentEvent.model.js';
 
 const extractJsonPayload = (raw) => {
   let current = raw;
@@ -33,9 +38,24 @@ const extractJsonPayload = (raw) => {
   return current;
 };
 
-export const streamAgentExecution = async ({ message, history = [], onEvent }) => {
+export const streamAgentExecution = async ({
+  message,
+  history = [],
+  onEvent = () => {},
+  userId,
+  conversationId,
+  context = null,
+}) => {
   const month = await reserveBudget();
-  const agent = await createBookingConciergeAgent();
+
+  // 1. Build prompt with serialized context if available
+  let systemPrompt;
+  if (context) {
+    const serialized = contextSerializer.serialize(context, message);
+    systemPrompt = buildSystemPrompt(serialized);
+  }
+
+  const agent = await createBookingConciergeAgent({ systemPrompt });
 
   const formattedHistory = (history || []).map((msg) => ({
     role: msg.role === 'assistant' ? 'assistant' : 'user',
@@ -52,6 +72,7 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
   let activeBookingSummary = null;
   const generativeWidgets = [];
   const capturedMessages = [];
+  const toolStartTimes = new Map();
 
   try {
     const eventStream = await agent.streamEvents(
@@ -78,6 +99,9 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
           onEvent({ type: 'token', token: text });
         }
       } else if (event.event === 'on_tool_start') {
+        const toolStartTime = Date.now();
+        toolStartTimes.set(event.name, toolStartTime);
+
         let input = event.data?.input;
         if (typeof input === 'string') {
           try {
@@ -87,13 +111,49 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
           }
         }
         console.log(`[Server:Agent] 🛠️ on_tool_start: "${event.name}" | input:`, input);
+
+        // Persist AgentEvent to MongoDB
+        if (conversationId) {
+          agentEventRepository
+            .createEvent({
+              conversationId,
+              type: AGENT_EVENT_TYPE.TOOL_START,
+              toolName: event.name,
+              status: AGENT_EVENT_STATUS.RUNNING,
+              metadata: { input },
+              startedAt: new Date(toolStartTime),
+            })
+            .catch((err) => console.warn('[StreamHandler] AgentEvent save failed:', err.message));
+        }
+
         onEvent({
           type: 'tool_start',
           tool: event.name,
+          toolName: event.name,
           input,
+          timestamp: toolStartTime,
         });
       } else if (event.event === 'on_tool_end') {
+        const completedTime = Date.now();
+        const startTime = toolStartTimes.get(event.name) || completedTime;
+        const durationMs = Math.max(0, completedTime - startTime);
+        toolStartTimes.delete(event.name);
+
         let parsedOutput = extractJsonPayload(event.data?.output);
+
+        // Deterministic booking state update (Section 24: application code updates MongoDB)
+        if (context?.bookingState) {
+          try {
+            const updated = await bookingSessionService.handleToolResult(
+              context.bookingState,
+              event.name,
+              parsedOutput
+            );
+            context.bookingState = updated;
+          } catch (toolStateErr) {
+            console.warn('[StreamHandler] Booking state update from tool failed:', toolStateErr.message);
+          }
+        }
 
         let widget = null;
         if (parsedOutput && typeof parsedOutput === 'object') {
@@ -121,13 +181,30 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
         }
 
         console.log(
-          `[Server:Agent] 🛠️ on_tool_end: "${event.name}" | widget: ${widget ? widget.type : 'none'}`
+          `[Server:Agent] 🛠️ on_tool_end: "${event.name}" (${durationMs}ms) | widget: ${widget ? widget.type : 'none'}`
         );
+
+        // Persist AgentEvent to MongoDB
+        if (conversationId) {
+          agentEventRepository
+            .createEvent({
+              conversationId,
+              type: AGENT_EVENT_TYPE.TOOL_SUCCESS,
+              toolName: event.name,
+              status: AGENT_EVENT_STATUS.SUCCESS,
+              metadata: { output: parsedOutput },
+              completedAt: new Date(completedTime),
+              durationMs,
+            })
+            .catch((err) => console.warn('[StreamHandler] AgentEvent save failed:', err.message));
+        }
 
         onEvent({
           type: 'tool_end',
           tool: event.name,
+          toolName: event.name,
           output: parsedOutput,
+          durationMs,
           widget,
         });
 
@@ -147,6 +224,7 @@ export const streamAgentExecution = async ({ message, history = [], onEvent }) =
       message: accumulatedText.trim(),
       bookingSummary: activeBookingSummary,
       generativeWidgets,
+      bookingState: context?.bookingState || null,
     };
   } catch (agentErr) {
     console.error(`[Server:Agent] ❌ Agent stream error:`, agentErr.message);

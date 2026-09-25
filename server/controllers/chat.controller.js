@@ -2,6 +2,11 @@ import mongoose from 'mongoose';
 import ChatConversation from '../models/chatConversation.model.js';
 import { runBookingAssistant, streamBookingAssistant } from '../services/chat/index.js';
 import { AppError } from '../errors/appError.js';
+import { contextBuilder } from '../modules/context/context.builder.js';
+import { messageRepository } from '../repositories/message.repository.js';
+import { bookingSessionService } from '../modules/booking/bookingSession.service.js';
+import { memoryExtractor } from '../modules/memory/memory.extractor.js';
+import { conversationSummaryService } from '../modules/memory/memory.summary.js';
 
 const MAX_HISTORY = 14;
 
@@ -70,12 +75,48 @@ export const streamChatMessage = async (req, res) => {
         conversation = await ChatConversation.findOne({ user: userId, isActive: true }).sort({ updatedAt: -1 });
       }
 
-      if (conversation) {
-        history = cleanHistory(conversation.messages);
+      if (!conversation) {
+        conversation = await ChatConversation.create({
+          user: userId,
+          messages: [],
+        });
+      }
+
+      history = cleanHistory(conversation.messages);
+    }
+
+    const resolvedConversationId = conversation?._id?.toString() || conversationId || new mongoose.Types.ObjectId().toString();
+
+    // 1. Working Memory: Get or create booking session
+    let bookingSession = null;
+    if (isDbConnected) {
+      bookingSession = await bookingSessionService.getOrCreateSession(userId, resolvedConversationId);
+    }
+
+    // 2. Persist user message to messages collection
+    let userMsgDoc = null;
+    if (isDbConnected) {
+      userMsgDoc = await messageRepository.createMessage({
+        conversationId: resolvedConversationId,
+        role: 'user',
+        content: message.trim(),
+      });
+    }
+
+    // 3. Assemble tiered AgentContext (recent messages, summaries, preferences, memories, bookings)
+    let context = null;
+    if (isDbConnected) {
+      context = await contextBuilder.build({
+        userId,
+        conversationId: resolvedConversationId,
+        userMessage: message.trim(),
+      });
+      if (bookingSession) {
+        context.bookingState = bookingSession;
       }
     }
 
-    console.log(`[Server:Chat] ⚙️ Delegating to streamBookingAssistant (history: ${history.length} msgs)`);
+    console.log(`[Server:Chat] ⚙️ Delegating to streamBookingAssistant (context: ${context ? 'tiered' : 'none'}, history: ${history.length} msgs)`);
 
     const result = await streamBookingAssistant({
       message: message.trim(),
@@ -83,18 +124,20 @@ export const streamChatMessage = async (req, res) => {
       onEvent: (event) => {
         sendSse(event);
       },
+      userId,
+      conversationId: resolvedConversationId,
+      context,
     });
 
-    // Persist conversation to MongoDB
-    let returnedConversationId = conversation?._id?.toString() || conversationId || null;
-
+    // 4. Persist assistant message to messages collection and conversation document
     if (isDbConnected) {
-      if (!conversation) {
-        conversation = await ChatConversation.create({
-          user: userId,
-          messages: [],
-        });
-      }
+      await messageRepository.createMessage({
+        conversationId: resolvedConversationId,
+        role: 'assistant',
+        content: result.message,
+        widgets: result.generativeWidgets || [],
+        bookingSummary: result.bookingSummary || null,
+      });
 
       conversation.messages.push(
         { role: 'user', content: message.trim() },
@@ -109,21 +152,34 @@ export const streamChatMessage = async (req, res) => {
       conversation.draft = result.bookingSummary || null;
       await conversation.save();
 
-      returnedConversationId = conversation._id.toString();
-    } else if (!returnedConversationId) {
-      returnedConversationId = new mongoose.Types.ObjectId().toString();
+      // 5. Post-response memory extraction & summarization (async/non-blocking)
+      if (userId && userMsgDoc) {
+        memoryExtractor
+          .extractAndPersist({
+            userId,
+            conversationId: resolvedConversationId,
+            messageId: userMsgDoc._id.toString(),
+            text: message.trim(),
+          })
+          .catch((err) => console.warn('[Server:Chat] Memory extraction error:', err.message));
+      }
+
+      conversationSummaryService
+        .summarizeIfNeeded(resolvedConversationId)
+        .catch((err) => console.warn('[Server:Chat] Summary update error:', err.message));
     }
 
     console.log(
-      `[Server:Chat] 📤 SSE Stream finished for conv: ${returnedConversationId} | chars: ${result.message?.length || 0} | widgets: ${result.generativeWidgets?.length || 0}`
+      `[Server:Chat] 📤 SSE Stream finished for conv: ${resolvedConversationId} | chars: ${result.message?.length || 0} | widgets: ${result.generativeWidgets?.length || 0}`
     );
 
     sendSse({
       type: 'done',
-      conversationId: returnedConversationId,
+      conversationId: resolvedConversationId,
       message: result.message,
       bookingSummary: result.bookingSummary || null,
       generativeWidgets: result.generativeWidgets || [],
+      bookingState: result.bookingState || null,
     });
 
     res.write('data: [DONE]\n\n');
@@ -167,21 +223,63 @@ export const sendChatMessage = async (req, res, next) => {
         conversation = await ChatConversation.findOne({ user: userId, isActive: true }).sort({ updatedAt: -1 });
       }
 
-      if (conversation) {
-        history = cleanHistory(conversation.messages);
-      }
-    }
-
-    const response = await runBookingAssistant({ message: message.trim(), history });
-    let returnedConversationId = conversation?._id?.toString() || conversationId || null;
-
-    if (isDbConnected) {
       if (!conversation) {
         conversation = await ChatConversation.create({
           user: userId,
           messages: [],
         });
       }
+
+      history = cleanHistory(conversation.messages);
+    }
+
+    const resolvedConversationId = conversation?._id?.toString() || conversationId || new mongoose.Types.ObjectId().toString();
+
+    // 1. Working Memory: Get or create booking session
+    let bookingSession = null;
+    if (isDbConnected) {
+      bookingSession = await bookingSessionService.getOrCreateSession(userId, resolvedConversationId);
+    }
+
+    // 2. Persist user message to messages collection
+    let userMsgDoc = null;
+    if (isDbConnected) {
+      userMsgDoc = await messageRepository.createMessage({
+        conversationId: resolvedConversationId,
+        role: 'user',
+        content: message.trim(),
+      });
+    }
+
+    // 3. Assemble tiered AgentContext
+    let context = null;
+    if (isDbConnected) {
+      context = await contextBuilder.build({
+        userId,
+        conversationId: resolvedConversationId,
+        userMessage: message.trim(),
+      });
+      if (bookingSession) {
+        context.bookingState = bookingSession;
+      }
+    }
+
+    const response = await runBookingAssistant({
+      message: message.trim(),
+      history,
+      userId,
+      conversationId: resolvedConversationId,
+      context,
+    });
+
+    if (isDbConnected) {
+      await messageRepository.createMessage({
+        conversationId: resolvedConversationId,
+        role: 'assistant',
+        content: response.message,
+        widgets: response.generativeWidgets || [],
+        bookingSummary: response.bookingSummary || null,
+      });
 
       conversation.messages.push(
         { role: 'user', content: message.trim() },
@@ -196,16 +294,28 @@ export const sendChatMessage = async (req, res, next) => {
       conversation.draft = response.bookingSummary;
       await conversation.save();
 
-      returnedConversationId = conversation._id.toString();
-    } else if (!returnedConversationId) {
-      returnedConversationId = new mongoose.Types.ObjectId().toString();
+      // Memory extraction & summarization
+      if (userId && userMsgDoc) {
+        memoryExtractor
+          .extractAndPersist({
+            userId,
+            conversationId: resolvedConversationId,
+            messageId: userMsgDoc._id.toString(),
+            text: message.trim(),
+          })
+          .catch((err) => console.warn('[Server:Chat] Memory extraction error:', err.message));
+      }
+
+      conversationSummaryService
+        .summarizeIfNeeded(resolvedConversationId)
+        .catch((err) => console.warn('[Server:Chat] Summary update error:', err.message));
     }
 
-    console.log(`[Server:Chat] 📤 Responding to POST /api/chat/message for conv: ${returnedConversationId}`);
+    console.log(`[Server:Chat] 📤 Responding to POST /api/chat/message for conv: ${resolvedConversationId}`);
 
     return res.json({
       success: true,
-      conversationId: returnedConversationId,
+      conversationId: resolvedConversationId,
       ...response,
     });
   } catch (error) {

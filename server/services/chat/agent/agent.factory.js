@@ -6,6 +6,7 @@ import { getMcpChatTools } from './mcpClient.js';
 export const createBookingConciergeAgent = async ({
   modelName = CHAT_CONFIG.DEFAULT_MODEL,
   useOllama,
+  systemPrompt,
 } = {}) => {
   // Flag to invoke Ollama, otherwise NVIDIA model
   const isOllama =
@@ -69,7 +70,7 @@ export const createBookingConciergeAgent = async ({
   const agent = createAgent({
     model,
     tools,
-    systemPrompt: buildSystemPrompt(),
+    systemPrompt: systemPrompt || buildSystemPrompt(),
   });
 
   agent.provider = provider;
