@@ -1,6 +1,7 @@
-import React from 'react'
+import React from 'react';
 import { assets } from './../assets/assets';
 import { Link, useNavigate } from 'react-router-dom';
+import { openCookieSettings } from './CookieConsentToast';
 
 const Footer = () => {
   const navigate = useNavigate();
@@ -51,6 +52,15 @@ const Footer = () => {
                 </li>
                 <li>
                   <Link to="/privacy-policy">Privacy policy</Link>
+                </li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={openCookieSettings}
+                    className="text-left hover:text-white transition-colors cursor-pointer text-zinc-400"
+                  >
+                    Cookie settings
+                  </button>
                 </li>
               </ul>
             </div>

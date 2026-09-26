@@ -19,6 +19,7 @@ import ListBookings from './pages/admin/ListBookings';
 import { useAppContext } from './context/AppContext';
 import Loading from './components/Loading';
 import ChatLauncher from './components/ChatLauncher';
+import CookieConsentToast from './components/CookieConsentToast';
 
 const App = () => {
   const isAdminRoute = useLocation().pathname.startsWith('/admin');
@@ -27,6 +28,7 @@ const App = () => {
   return (
     <>
       <Toaster />
+      <CookieConsentToast />
       {!isAdminRoute && <Navbar />}
       <Routes>
         <Route path='/' element={<Home />} />
